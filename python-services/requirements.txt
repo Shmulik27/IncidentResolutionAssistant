@@ -1,3 +1,5 @@
 fastapi
 uvicorn
-spacy 
+spacy
+faiss-cpu
+sentence-transformers 
