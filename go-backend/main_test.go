@@ -30,6 +30,10 @@ func TestAnalyzeEndpoint(t *testing.T) {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
+		if req.Logs == nil {
+			http.Error(w, "Missing 'logs' field", http.StatusBadRequest)
+			return
+		}
 		body, _ := json.Marshal(req)
 		resp, err := http.Post(os.Getenv("LOG_ANALYZER_URL"), "application/json", strings.NewReader(string(body)))
 		if err != nil {
@@ -72,6 +76,10 @@ func TestAnalyzeEndpoint_PythonServiceDown(t *testing.T) {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
 		}
+		if req.Logs == nil {
+			http.Error(w, "Missing 'logs' field", http.StatusBadRequest)
+			return
+		}
 		body, _ := json.Marshal(req)
 		resp, err := http.Post(os.Getenv("LOG_ANALYZER_URL"), "application/json", strings.NewReader(string(body)))
 		if err != nil {
@@ -104,6 +112,10 @@ func TestAnalyzeEndpoint_InvalidInput(t *testing.T) {
 		var req LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		if req.Logs == nil {
+			http.Error(w, "Missing 'logs' field", http.StatusBadRequest)
 			return
 		}
 	})
