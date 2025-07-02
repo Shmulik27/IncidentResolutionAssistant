@@ -2,13 +2,14 @@ from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import List
 import spacy
-from collections import Counter
+from collections import Counter as StdCounter
 import os
 import logging
 from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
+import scipy.sparse as sparse
 
 app = FastAPI()
 
@@ -50,8 +51,12 @@ NORMAL_LOGS = [
 # Train Isolation Forest on normal logs (TF-IDF features)
 vectorizer = TfidfVectorizer()
 X_train = vectorizer.fit_transform(NORMAL_LOGS)
-iso_forest = IsolationForest(contamination=0.1, random_state=42)
-iso_forest.fit(X_train.toarray())
+if sparse.issparse(X_train):
+    X_train_dense = sparse.csr_matrix(X_train).toarray()
+else:
+    X_train_dense = np.array(X_train)
+iso_forest = IsolationForest(contamination="auto", random_state=42)
+iso_forest.fit(X_train_dense)
 
 class LogRequest(BaseModel):
     logs: List[str]
@@ -78,7 +83,8 @@ def analyze_logs(request: LogRequest):
         # ML-based anomaly detection
         if request.logs:
             X_test = vectorizer.transform(request.logs)
-            preds = iso_forest.predict(X_test.toarray())  # -1 = anomaly, 1 = normal
+            X_test_dense = sparse.csr_matrix(X_test).toarray()
+            preds = iso_forest.predict(X_test_dense)
             ml_anomalies = [line for line, pred in zip(request.logs, preds) if pred == -1]
 
         # Keyword-based anomalies
@@ -87,7 +93,7 @@ def analyze_logs(request: LogRequest):
                 anomalies.append(line)
 
         # Frequency analysis (flag rare lines)
-        counts = Counter(request.logs)
+        counts = StdCounter(request.logs)
         rare_lines = [line for line, count in counts.items() if count == 1]
         freq_anomalies.extend(rare_lines)
 
@@ -97,7 +103,7 @@ def analyze_logs(request: LogRequest):
             doc = nlp(line)
             for ent in doc.ents:
                 all_entities.append(ent.text)
-        entity_counts = Counter(all_entities)
+        entity_counts = StdCounter(all_entities)
         rare_entities = {ent for ent, count in entity_counts.items() if count == 1}
         for line in request.logs:
             doc = nlp(line)
