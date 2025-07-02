@@ -3,6 +3,7 @@ import requests
 GO_BACKEND_URL = "http://localhost:8080/analyze"
 GO_PREDICT_URL = "http://localhost:8080/predict"
 GO_SEARCH_URL = "http://localhost:8080/search"
+GO_RECOMMEND_URL = "http://localhost:8080/recommend"
 
 sample_logs = [
     "2024-06-01 12:00:00 INFO Starting service",
@@ -72,9 +73,46 @@ def test_search_knowledge_base():
     assert "resolution" in data[0]
     print("End-to-end test (search knowledge base) passed!")
 
+def test_recommend_action():
+    payload = {"root_cause": "Memory exhaustion"}
+    response = requests.post(GO_RECOMMEND_URL, json=payload)
+    print("Recommend action status:", response.status_code)
+    print("Recommend action response:", response.json())
+    assert response.status_code == 200
+    data = response.json()
+    assert "action" in data
+    assert "memory" in data["action"].lower()
+    print("End-to-end test (recommend action) passed!")
+
+def test_full_incident_scenario():
+    print("\n--- Full Incident Scenario Test ---")
+    # 1. Analyze logs
+    analyze_resp = requests.post(GO_BACKEND_URL, json={"logs": sample_logs})
+    print("Analyze response:", analyze_resp.json())
+    assert analyze_resp.status_code == 200
+    anomalies = analyze_resp.json().get("anomalies", [])
+    assert any("out of memory" in a.lower() for a in anomalies)
+    # 2. Predict root cause
+    predict_resp = requests.post(GO_PREDICT_URL, json={"logs": sample_logs})
+    print("Predict response:", predict_resp.json())
+    assert predict_resp.status_code == 200
+    root_cause = predict_resp.json().get("root_cause")
+    assert root_cause == "Memory exhaustion"
+    # 3. Recommend action
+    recommend_resp = requests.post(GO_RECOMMEND_URL, json={"root_cause": root_cause})
+    print("Recommend response:", recommend_resp.json())
+    assert recommend_resp.status_code == 200
+    action = recommend_resp.json().get("action")
+    assert "memory" in action.lower()
+    print("Full incident scenario test passed!")
+
+# Run all tests
+
 test_normal()
 test_no_anomalies()
 # Uncomment the next line to run the Python service down test (requires manual setup)
 # test_python_service_down()
 test_predict_root_cause()
-test_search_knowledge_base() 
+test_search_knowledge_base()
+test_recommend_action()
+test_full_incident_scenario() 

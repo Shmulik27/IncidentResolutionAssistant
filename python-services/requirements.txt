@@ -2,4 +2,5 @@ fastapi
 uvicorn
 spacy
 faiss-cpu
-sentence-transformers 
+sentence-transformers
+scikit-learn 

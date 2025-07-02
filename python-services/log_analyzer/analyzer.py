@@ -5,6 +5,9 @@ import spacy
 from collections import Counter
 import os
 import logging
+from sklearn.ensemble import IsolationForest
+from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 
 app = FastAPI()
 
@@ -24,6 +27,26 @@ else:
     keywords = DEFAULT_KEYWORDS
     logger.info(f"Using default anomaly keywords: {keywords}")
 
+# Synthetic normal logs for ML training
+NORMAL_LOGS = [
+    "INFO Service started successfully",
+    "INFO User logged in",
+    "INFO Health check passed",
+    "INFO Scheduled job completed",
+    "INFO Connection established",
+    "INFO Request processed",
+    "INFO Data saved to database",
+    "INFO Cache hit",
+    "INFO Configuration loaded",
+    "INFO Shutdown initiated"
+]
+
+# Train Isolation Forest on normal logs (TF-IDF features)
+vectorizer = TfidfVectorizer()
+X_train = vectorizer.fit_transform(NORMAL_LOGS)
+iso_forest = IsolationForest(contamination=0.1, random_state=42)
+iso_forest.fit(X_train.toarray())
+
 class LogRequest(BaseModel):
     logs: List[str]
 
@@ -37,6 +60,13 @@ def analyze_logs(request: LogRequest):
     anomalies = []
     entity_anomalies = []
     freq_anomalies = []
+    ml_anomalies = []
+
+    # ML-based anomaly detection
+    if request.logs:
+        X_test = vectorizer.transform(request.logs)
+        preds = iso_forest.predict(X_test.toarray())  # -1 = anomaly, 1 = normal
+        ml_anomalies = [line for line, pred in zip(request.logs, preds) if pred == -1]
 
     # Keyword-based anomalies
     for line in request.logs:
@@ -62,14 +92,15 @@ def analyze_logs(request: LogRequest):
             entity_anomalies.append(line)
 
     # Combine and deduplicate anomalies
-    all_anomalies = list(set(anomalies + freq_anomalies + entity_anomalies))
-    logger.info(f"Detected {len(all_anomalies)} anomalies.")
+    all_anomalies = list(set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies))
+    logger.info(f"Detected {len(all_anomalies)} anomalies (ML: {len(ml_anomalies)}).")
     return {
         "anomalies": all_anomalies,
         "count": len(all_anomalies),
         "details": {
             "keyword": anomalies,
             "frequency": freq_anomalies,
-            "entity": entity_anomalies
+            "entity": entity_anomalies,
+            "ml": ml_anomalies
         }
     } 

@@ -18,9 +18,14 @@ type SearchRequest struct {
 	TopK  int    `json:"top_k"`
 }
 
+type RecommendRequest struct {
+	RootCause string `json:"root_cause"`
+}
+
 var logAnalyzerURL string
 var rootCausePredictorURL string
 var knowledgeBaseURL string
+var actionRecommenderURL string
 
 func main() {
 	logAnalyzerURL = os.Getenv("LOG_ANALYZER_URL")
@@ -35,9 +40,14 @@ func main() {
 	if knowledgeBaseURL == "" {
 		knowledgeBaseURL = "http://knowledge-base:8000/search"
 	}
+	actionRecommenderURL = os.Getenv("ACTION_RECOMMENDER_URL")
+	if actionRecommenderURL == "" {
+		actionRecommenderURL = "http://action-recommender:8000/recommend"
+	}
 	log.Printf("Using log analyzer URL: %s", logAnalyzerURL)
 	log.Printf("Using root cause predictor URL: %s", rootCausePredictorURL)
 	log.Printf("Using knowledge base URL: %s", knowledgeBaseURL)
+	log.Printf("Using action recommender URL: %s", actionRecommenderURL)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -129,7 +139,30 @@ func main() {
 	})
 
 	http.HandleFunc("/recommend", func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(map[string]string{"result": "Action recommendation not implemented yet."})
+		var req RecommendRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("Invalid request: %v", err)
+			http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.RootCause == "" {
+			log.Printf("Missing 'root_cause' field in request")
+			http.Error(w, "Missing 'root_cause' field", http.StatusBadRequest)
+			return
+		}
+		log.Printf("Received /recommend request with root cause: %s", req.RootCause)
+
+		body, _ := json.Marshal(req)
+		resp, err := http.Post(actionRecommenderURL, "application/json", bytes.NewBuffer(body))
+		if err != nil {
+			log.Printf("Failed to contact action recommender: %v", err)
+			http.Error(w, "Failed to contact action recommender: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
 	})
 
 	log.Println("Go backend listening on :8080")
