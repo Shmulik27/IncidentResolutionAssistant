@@ -113,6 +113,7 @@ def metrics():
 
 @app.get("/health")
 def health():
+    logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
@@ -122,6 +123,7 @@ def predict_root_cause(request: PredictRequest):
     try:
         logger.info(f"Received {len(request.logs)} log lines for prediction.")
         if not request.logs:
+            logger.info("No logs provided in request.")
             PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause="unknown").inc()
             return {"root_cause": "Unknown or not enough data"}
         # Join all logs into a single string for prediction

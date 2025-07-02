@@ -55,6 +55,7 @@ def metrics():
 
 @app.get("/health")
 def health():
+    logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
@@ -63,6 +64,9 @@ def recommend_action(request: RecommendRequest):
     REQUESTS_TOTAL.labels(endpoint="/recommend").inc()
     try:
         logger.info(f"Received root cause: {request.root_cause}")
+        if not request.root_cause:
+            logger.info("No root_cause provided in request.")
+            return {"action": "No action: root cause not provided"}
         X_query = vectorizer.transform([request.root_cause])
         action = model.predict(X_query)[0]
         logger.info(f"Recommended action: {action}")

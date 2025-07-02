@@ -67,6 +67,7 @@ def metrics():
 
 @app.get("/health")
 def health():
+    logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
@@ -75,29 +76,34 @@ def analyze_logs(request: LogRequest):
     REQUESTS_TOTAL.labels(endpoint="/analyze").inc()
     try:
         logger.info(f"Received {len(request.logs)} log lines for analysis.")
+        if not request.logs:
+            logger.info("No logs provided in request.")
+            return {"anomalies": [], "count": 0, "details": {"keyword": [], "frequency": [], "entity": [], "ml": []}}
         anomalies = []
         entity_anomalies = []
         freq_anomalies = []
         ml_anomalies = []
 
-        # ML-based anomaly detection
-        if request.logs:
-            X_test = vectorizer.transform(request.logs)
-            X_test_dense = sparse.csr_matrix(X_test).toarray()
-            preds = iso_forest.predict(X_test_dense)
-            ml_anomalies = [line for line, pred in zip(request.logs, preds) if pred == -1]
+        logger.info("Starting ML-based anomaly detection.")
+        X_test = vectorizer.transform(request.logs)
+        X_test_dense = sparse.csr_matrix(X_test).toarray()
+        preds = iso_forest.predict(X_test_dense)
+        ml_anomalies = [line for line, pred in zip(request.logs, preds) if pred == -1]
+        logger.info(f"ML-based anomaly detection found {len(ml_anomalies)} anomalies.")
 
-        # Keyword-based anomalies
+        logger.info("Starting keyword-based anomaly detection.")
         for line in request.logs:
             if any(k in line for k in keywords):
                 anomalies.append(line)
+        logger.info(f"Keyword-based anomaly detection found {len(anomalies)} anomalies.")
 
-        # Frequency analysis (flag rare lines)
+        logger.info("Starting frequency-based anomaly detection.")
         counts = StdCounter(request.logs)
         rare_lines = [line for line, count in counts.items() if count == 1]
         freq_anomalies.extend(rare_lines)
+        logger.info(f"Frequency-based anomaly detection found {len(freq_anomalies)} anomalies.")
 
-        # NLP-based entity extraction (flag lines with rare entities)
+        logger.info("Starting entity-based anomaly detection.")
         all_entities = []
         for line in request.logs:
             doc = nlp(line)
@@ -109,6 +115,7 @@ def analyze_logs(request: LogRequest):
             doc = nlp(line)
             if any(ent.text in rare_entities for ent in doc.ents):
                 entity_anomalies.append(line)
+        logger.info(f"Entity-based anomaly detection found {len(entity_anomalies)} anomalies.")
 
         # Combine and deduplicate anomalies
         all_anomalies = list(set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies))

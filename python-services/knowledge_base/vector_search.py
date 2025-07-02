@@ -54,6 +54,7 @@ def metrics():
 
 @app.get("/health")
 def health():
+    logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
@@ -62,6 +63,9 @@ def search_incidents(request: SearchRequest):
     REQUESTS_TOTAL.labels(endpoint="/search").inc()
     try:
         logger.info(f"Received search query: '{request.query}' (top_k={request.top_k})")
+        if not request.query:
+            logger.info("No query provided in request.")
+            return []
         query_emb = MODEL.encode([request.query], convert_to_numpy=True)
         D, I = index.search(query_emb, request.top_k)
         results = []

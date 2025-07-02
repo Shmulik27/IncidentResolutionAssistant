@@ -11,12 +11,39 @@ A smart assistant that helps DevOps/SRE teams diagnose and resolve production is
   - **Knowledge Base Search**: Semantic search (sentence-transformers + FAISS)
   - **Action Recommender**: ML-based (LogisticRegression)
 
+### System Design Diagram
+
+```mermaid
+flowchart TD
+    User["User / Alert"] --> GoBackend["Go Backend (API Gateway)"]
+    GoBackend --> LogAnalyzer["Log Analyzer (Python)"]
+    GoBackend --> RootCausePredictor["Root Cause Predictor (Python)"]
+    GoBackend --> KnowledgeBase["Knowledge Base Search (Python)"]
+    GoBackend --> ActionRecommender["Action Recommender (Python)"]
+    LogAnalyzer -- "/analyze" --> GoBackend
+    RootCausePredictor -- "/predict" --> GoBackend
+    KnowledgeBase -- "/search" --> GoBackend
+    ActionRecommender -- "/recommend" --> GoBackend
+    subgraph PythonServices["Python Microservices"]
+        LogAnalyzer
+        RootCausePredictor
+        KnowledgeBase
+        ActionRecommender
+    end
+    GoBackend -- "/metrics, /health" --> Prometheus[(Prometheus)]
+    PythonServices -- "/metrics, /health" --> Prometheus[(Prometheus)]
 ```
-[User/Alert] -> [Go Backend] -> [Log Analyzer]
-                                 [Root Cause Predictor]
-                                 [Knowledge Base Search]
-                                 [Action Recommender]
-```
+
+### Request/Response Flow
+1. **User/Alert** triggers a request to the Go Backend (API Gateway).
+2. **Go Backend** receives the request and routes it to the appropriate Python microservice:
+   - `/analyze` → Log Analyzer
+   - `/predict` → Root Cause Predictor
+   - `/search` → Knowledge Base Search
+   - `/recommend` → Action Recommender
+3. Each **Python microservice** processes the request (using ML/NLP/Vector Search) and returns a response to the Go Backend.
+4. **Go Backend** aggregates and returns the result to the user or alerting system.
+5. All services expose `/health` and `/metrics` endpoints for monitoring (e.g., Prometheus).
 
 ## Setup & Running
 
