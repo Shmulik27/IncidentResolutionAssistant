@@ -1,12 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import List
 import faiss
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import logging
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI()
+
+# Prometheus metrics
+REQUESTS_TOTAL = Counter('kb_search_requests_total', 'Total requests to knowledge base search', ['endpoint'])
+ERRORS_TOTAL = Counter('kb_search_errors_total', 'Total errors in knowledge base search', ['endpoint'])
+SEARCHES_TOTAL = Counter('kb_search_searches_total', 'Total searches made', ['endpoint'])
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -42,23 +48,35 @@ class SearchResult(BaseModel):
     resolution: str
     score: float
 
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 @app.get("/health")
 def health():
+    REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.post("/search", response_model=List[SearchResult])
 def search_incidents(request: SearchRequest):
-    logger.info(f"Received search query: '{request.query}' (top_k={request.top_k})")
-    query_emb = MODEL.encode([request.query], convert_to_numpy=True)
-    D, I = index.search(query_emb, request.top_k)
-    results = []
-    for idx, dist in zip(I[0], D[0]):
-        incident = INCIDENTS[idx]
-        logger.info(f"Match: {incident['text']} (score={dist})")
-        results.append(SearchResult(
-            id=incident["id"],
-            text=incident["text"],
-            resolution=incident["resolution"],
-            score=float(dist)
-        ))
-    return results 
+    REQUESTS_TOTAL.labels(endpoint="/search").inc()
+    try:
+        logger.info(f"Received search query: '{request.query}' (top_k={request.top_k})")
+        query_emb = MODEL.encode([request.query], convert_to_numpy=True)
+        D, I = index.search(query_emb, request.top_k)
+        results = []
+        for idx, dist in zip(I[0], D[0]):
+            incident = INCIDENTS[idx]
+            logger.info(f"Match: {incident['text']} (score={dist})")
+            results.append(SearchResult(
+                id=incident["id"],
+                text=incident["text"],
+                resolution=incident["resolution"],
+                score=float(dist)
+            ))
+        SEARCHES_TOTAL.labels(endpoint="/search").inc()
+        return results
+    except Exception as e:
+        ERRORS_TOTAL.labels(endpoint="/search").inc()
+        logger.error(f"Error in /search: {e}")
+        return [] 

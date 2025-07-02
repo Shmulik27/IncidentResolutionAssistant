@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import List
 import os
@@ -6,8 +6,14 @@ import logging
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 import numpy as np
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI()
+
+# Prometheus metrics
+REQUESTS_TOTAL = Counter('root_cause_predictor_requests_total', 'Total requests to root cause predictor', ['endpoint'])
+ERRORS_TOTAL = Counter('root_cause_predictor_errors_total', 'Total errors in root cause predictor', ['endpoint'])
+PREDICTIONS_TOTAL = Counter('root_cause_predictor_predictions_total', 'Total predictions made', ['endpoint', 'root_cause'])
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -101,23 +107,37 @@ model.fit(X_train, y_train)
 class PredictRequest(BaseModel):
     logs: List[str]
 
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 @app.get("/health")
 def health():
+    REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.post("/predict")
 def predict_root_cause(request: PredictRequest):
-    logger.info(f"Received {len(request.logs)} log lines for prediction.")
-    if not request.logs:
-        return {"root_cause": "Unknown or not enough data"}
-    # Join all logs into a single string for prediction
-    joined_logs = " ".join(request.logs)
-    X_query = vectorizer.transform([joined_logs])
-    proba = model.predict_proba(X_query)[0]
-    max_proba = np.max(proba)
-    pred = model.classes_[np.argmax(proba)]
-    if max_proba < 0.05:
-        logger.info(f"Low confidence ({max_proba:.2f}) for prediction. Returning unknown.")
-        return {"root_cause": "Unknown or not enough data"}
-    logger.info(f"Predicted root cause: {pred} (confidence: {max_proba:.2f})")
-    return {"root_cause": pred} 
+    REQUESTS_TOTAL.labels(endpoint="/predict").inc()
+    try:
+        logger.info(f"Received {len(request.logs)} log lines for prediction.")
+        if not request.logs:
+            PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause="unknown").inc()
+            return {"root_cause": "Unknown or not enough data"}
+        # Join all logs into a single string for prediction
+        joined_logs = " ".join(request.logs)
+        X_query = vectorizer.transform([joined_logs])
+        proba = model.predict_proba(X_query)[0]
+        max_proba = np.max(proba)
+        pred = model.classes_[np.argmax(proba)]
+        if max_proba < 0.05:
+            logger.info(f"Low confidence ({max_proba:.2f}) for prediction. Returning unknown.")
+            PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause="unknown").inc()
+            return {"root_cause": "Unknown or not enough data"}
+        logger.info(f"Predicted root cause: {pred} (confidence: {max_proba:.2f})")
+        PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause=pred).inc()
+        return {"root_cause": pred}
+    except Exception as e:
+        ERRORS_TOTAL.labels(endpoint="/predict").inc()
+        logger.error(f"Error in /predict: {e}")
+        return {"error": str(e)} 

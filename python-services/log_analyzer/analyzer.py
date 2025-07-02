@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from typing import List
 import spacy
@@ -8,8 +8,14 @@ import logging
 from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
+from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
 app = FastAPI()
+
+# Prometheus metrics
+REQUESTS_TOTAL = Counter('log_analyzer_requests_total', 'Total requests to log analyzer', ['endpoint'])
+ERRORS_TOTAL = Counter('log_analyzer_errors_total', 'Total errors in log analyzer', ['endpoint'])
+ANOMALIES_TOTAL = Counter('log_analyzer_anomalies_total', 'Total anomalies detected', ['endpoint'])
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -50,57 +56,69 @@ iso_forest.fit(X_train.toarray())
 class LogRequest(BaseModel):
     logs: List[str]
 
+@app.get("/metrics")
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 @app.get("/health")
 def health():
+    REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.post("/analyze")
 def analyze_logs(request: LogRequest):
-    logger.info(f"Received {len(request.logs)} log lines for analysis.")
-    anomalies = []
-    entity_anomalies = []
-    freq_anomalies = []
-    ml_anomalies = []
+    REQUESTS_TOTAL.labels(endpoint="/analyze").inc()
+    try:
+        logger.info(f"Received {len(request.logs)} log lines for analysis.")
+        anomalies = []
+        entity_anomalies = []
+        freq_anomalies = []
+        ml_anomalies = []
 
-    # ML-based anomaly detection
-    if request.logs:
-        X_test = vectorizer.transform(request.logs)
-        preds = iso_forest.predict(X_test.toarray())  # -1 = anomaly, 1 = normal
-        ml_anomalies = [line for line, pred in zip(request.logs, preds) if pred == -1]
+        # ML-based anomaly detection
+        if request.logs:
+            X_test = vectorizer.transform(request.logs)
+            preds = iso_forest.predict(X_test.toarray())  # -1 = anomaly, 1 = normal
+            ml_anomalies = [line for line, pred in zip(request.logs, preds) if pred == -1]
 
-    # Keyword-based anomalies
-    for line in request.logs:
-        if any(k in line for k in keywords):
-            anomalies.append(line)
+        # Keyword-based anomalies
+        for line in request.logs:
+            if any(k in line for k in keywords):
+                anomalies.append(line)
 
-    # Frequency analysis (flag rare lines)
-    counts = Counter(request.logs)
-    rare_lines = [line for line, count in counts.items() if count == 1]
-    freq_anomalies.extend(rare_lines)
+        # Frequency analysis (flag rare lines)
+        counts = Counter(request.logs)
+        rare_lines = [line for line, count in counts.items() if count == 1]
+        freq_anomalies.extend(rare_lines)
 
-    # NLP-based entity extraction (flag lines with rare entities)
-    all_entities = []
-    for line in request.logs:
-        doc = nlp(line)
-        for ent in doc.ents:
-            all_entities.append(ent.text)
-    entity_counts = Counter(all_entities)
-    rare_entities = {ent for ent, count in entity_counts.items() if count == 1}
-    for line in request.logs:
-        doc = nlp(line)
-        if any(ent.text in rare_entities for ent in doc.ents):
-            entity_anomalies.append(line)
+        # NLP-based entity extraction (flag lines with rare entities)
+        all_entities = []
+        for line in request.logs:
+            doc = nlp(line)
+            for ent in doc.ents:
+                all_entities.append(ent.text)
+        entity_counts = Counter(all_entities)
+        rare_entities = {ent for ent, count in entity_counts.items() if count == 1}
+        for line in request.logs:
+            doc = nlp(line)
+            if any(ent.text in rare_entities for ent in doc.ents):
+                entity_anomalies.append(line)
 
-    # Combine and deduplicate anomalies
-    all_anomalies = list(set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies))
-    logger.info(f"Detected {len(all_anomalies)} anomalies (ML: {len(ml_anomalies)}).")
-    return {
-        "anomalies": all_anomalies,
-        "count": len(all_anomalies),
-        "details": {
-            "keyword": anomalies,
-            "frequency": freq_anomalies,
-            "entity": entity_anomalies,
-            "ml": ml_anomalies
+        # Combine and deduplicate anomalies
+        all_anomalies = list(set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies))
+        ANOMALIES_TOTAL.labels(endpoint="/analyze").inc(len(all_anomalies))
+        logger.info(f"Detected {len(all_anomalies)} anomalies (ML: {len(ml_anomalies)}).")
+        return {
+            "anomalies": all_anomalies,
+            "count": len(all_anomalies),
+            "details": {
+                "keyword": anomalies,
+                "frequency": freq_anomalies,
+                "entity": entity_anomalies,
+                "ml": ml_anomalies
+            }
         }
-    } 
+    except Exception as e:
+        ERRORS_TOTAL.labels(endpoint="/analyze").inc()
+        logger.error(f"Error in /analyze: {e}")
+        return {"error": str(e)} 

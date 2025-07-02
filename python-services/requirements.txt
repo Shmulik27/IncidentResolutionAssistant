@@ -3,4 +3,5 @@ uvicorn
 spacy
 faiss-cpu
 sentence-transformers
-scikit-learn 
+scikit-learn
+prometheus_client 
