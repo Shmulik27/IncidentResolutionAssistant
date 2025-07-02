@@ -61,3 +61,73 @@ func TestAnalyzeEndpoint(t *testing.T) {
 		t.Errorf("Expected count 1, got %v", result["count"])
 	}
 }
+
+func TestAnalyzeEndpoint_PythonServiceDown(t *testing.T) {
+	os.Setenv("LOG_ANALYZER_URL", "http://localhost:9999/doesnotexist") // Unreachable
+	defer os.Unsetenv("LOG_ANALYZER_URL")
+
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req LogRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+		body, _ := json.Marshal(req)
+		resp, err := http.Post(os.Getenv("LOG_ANALYZER_URL"), "application/json", strings.NewReader(string(body)))
+		if err != nil {
+			http.Error(w, "Failed to contact log analyzer", http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
+	})
+
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+
+	payload := `{"logs": ["error line"]}`
+	resp, err := http.Post(ts.URL, "application/json", strings.NewReader(payload))
+	if err != nil {
+		t.Fatalf("Failed to POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 500 {
+		t.Fatalf("Expected 500, got %d", resp.StatusCode)
+	}
+}
+
+func TestAnalyzeEndpoint_InvalidInput(t *testing.T) {
+	// Valid handler, but send malformed JSON
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req LogRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request", http.StatusBadRequest)
+			return
+		}
+	})
+
+	ts := httptest.NewServer(h)
+	defer ts.Close()
+
+	// Malformed JSON
+	resp, err := http.Post(ts.URL, "application/json", strings.NewReader("notjson"))
+	if err != nil {
+		t.Fatalf("Failed to POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("Expected 400, got %d", resp.StatusCode)
+	}
+
+	// Missing 'logs' field
+	resp, err = http.Post(ts.URL, "application/json", strings.NewReader(`{"notlogs": ["A"]}`))
+	if err != nil {
+		t.Fatalf("Failed to POST: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 400 {
+		t.Fatalf("Expected 400, got %d", resp.StatusCode)
+	}
+}
