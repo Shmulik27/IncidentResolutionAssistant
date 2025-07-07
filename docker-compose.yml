@@ -1,41 +1,39 @@
-version: '3.8'
-services:
-  go-backend:
-    build: ./go-backend
-    ports:
-      - "8080:8080"
-    depends_on:
-      - log-analyzer
-      - root-cause-predictor
-      - knowledge-base
-      - action-recommender
-    environment:
-      - PYTHON_SERVICES_HOST=python-services
+   version: '3.8'
+   services:
+     go-backend:
+       build: ./go-backend
+       ports:
+         - "8080:8080"
+       depends_on:
+         - log-analyzer
+         - root-cause-predictor
+         - knowledge-base
+         - action-recommender
 
-  log-analyzer:
-    build:
-      context: ./python-services
-      dockerfile: log_analyzer/Dockerfile
-    ports:
-      - "8001:8000"
+     log-analyzer:
+       build:
+         context: ./python-services
+         dockerfile: log_analyzer/Dockerfile
+       ports:
+         - "8001:8000"
 
-  root-cause-predictor:
-    build:
-      context: ./python-services
-      dockerfile: root_cause_predictor/Dockerfile
-    ports:
-      - "8002:8000"
+     root-cause-predictor:
+       build:
+         context: ./python-services
+         dockerfile: root_cause_predictor/Dockerfile
+       ports:
+         - "8002:8000"
 
-  knowledge-base:
-    build:
-      context: ./python-services
-      dockerfile: knowledge_base/Dockerfile
-    ports:
-      - "8003:8000"
+     knowledge-base:
+       build:
+         context: ./python-services
+         dockerfile: knowledge_base/Dockerfile
+       ports:
+         - "8003:8000"
 
-  action-recommender:
-    build:
-      context: ./python-services
-      dockerfile: action_recommender/Dockerfile
-    ports:
-      - "8004:8000" 
+     action-recommender:
+       build:
+         context: ./python-services
+         dockerfile: action_recommender/Dockerfile
+       ports:
+         - "8004:8000"
