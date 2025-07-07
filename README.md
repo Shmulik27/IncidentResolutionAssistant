@@ -45,6 +45,59 @@ flowchart TD
 4. **Go Backend** aggregates and returns the result to the user or alerting system.
 5. All services expose `/health` and `/metrics` endpoints for monitoring (e.g., Prometheus).
 
+## Example Flow: End-to-End Incident Resolution
+
+Suppose an alerting system detects unusual activity in your production logs and sends a request to the Go Backend. Here's how the system processes the incident:
+
+### 1. **Log Analysis**
+- **Input:** The alerting system (or user) sends a POST request to `/analyze` with recent log lines:
+  ```json
+  {
+    "logs": [
+      "2024-07-07 12:00:01 ERROR Database connection failed",
+      "2024-07-07 12:00:02 WARN Retrying connection",
+      "2024-07-07 12:00:03 ERROR Database connection failed"
+    ]
+  }
+  ```
+- **Processing:** The Go Backend forwards this to the Log Analyzer service, which uses ML/NLP to detect anomalies and extract key events.
+- **Output:** The Log Analyzer returns a summary of anomalies and relevant log events.
+
+### 2. **Root Cause Prediction**
+- **Input:** The Go Backend sends the analyzed log events to the Root Cause Predictor via `/predict`.
+- **Processing:** The Root Cause Predictor uses a trained ML model to infer the most likely root cause (e.g., "Database outage").
+- **Output:** The predicted root cause is returned to the Go Backend.
+
+### 3. **Knowledge Base Search**
+- **Input:** The Go Backend queries the Knowledge Base service at `/search` with the root cause or log context.
+- **Processing:** The Knowledge Base uses semantic vector search to find similar past incidents and their resolutions.
+- **Output:** A list of similar incidents and their solutions is returned.
+
+### 4. **Action Recommendation**
+- **Input:** The Go Backend sends the root cause and context to the Action Recommender at `/recommend`.
+- **Processing:** The Action Recommender suggests concrete remediation steps (e.g., "Restart the database service").
+- **Output:** Recommended actions are returned.
+
+### 5. **Aggregated Response**
+- **Output:** The Go Backend aggregates all results and returns a unified response to the user or alerting system:
+  ```json
+  {
+    "anomalies": [...],
+    "root_cause": "Database outage",
+    "similar_incidents": [
+      {"id": 42, "summary": "2023-11-01: Database outage due to network partition", "resolution": "Restarted DB and fixed network config"}
+    ],
+    "recommended_actions": [
+      "Check database server status",
+      "Restart the database service",
+      "Verify network connectivity"
+    ]
+  }
+  ```
+
+### 6. **Monitoring**
+- All services expose `/metrics` and `/health` endpoints for observability and orchestration.
+
 ## Setup & Running
 
 ### Prerequisites
