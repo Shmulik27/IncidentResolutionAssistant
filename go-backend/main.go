@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -29,6 +31,8 @@ var logAnalyzerURL string
 var rootCausePredictorURL string
 var knowledgeBaseURL string
 var actionRecommenderURL string
+var incidentIntegratorURL string
+var codeRelatedKeywords []string
 
 // Prometheus metrics
 var (
@@ -53,6 +57,33 @@ func init() {
 	prometheus.MustRegister(errorsTotal)
 }
 
+func loadCodeRelatedKeywords(path string) []string {
+	file, err := os.Open(path)
+	if err != nil {
+		log.Printf("Could not open code keywords config: %v", err)
+		return []string{"exception", "fault", "error", "regression", "crash", "panic"} // fallback defaults
+	}
+	defer file.Close()
+	var keywords []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		kw := strings.TrimSpace(scanner.Text())
+		if kw != "" && !strings.HasPrefix(kw, "#") {
+			keywords = append(keywords, kw)
+		}
+	}
+	return keywords
+}
+
+func isCodeRelated(rootCause string) bool {
+	for _, keyword := range codeRelatedKeywords {
+		if strings.Contains(strings.ToLower(rootCause), strings.ToLower(keyword)) {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
 	logAnalyzerURL = os.Getenv("LOG_ANALYZER_URL")
 	if logAnalyzerURL == "" {
@@ -70,6 +101,12 @@ func main() {
 	if actionRecommenderURL == "" {
 		actionRecommenderURL = "http://action-recommender:8000/recommend"
 	}
+	incidentIntegratorURL = os.Getenv("INCIDENT_INTEGRATOR_URL")
+	if incidentIntegratorURL == "" {
+		incidentIntegratorURL = "http://incident-integrator:8000/incident"
+	}
+	codeRelatedKeywords = loadCodeRelatedKeywords("code_keywords.txt")
+	log.Printf("Loaded code-related keywords: %v", codeRelatedKeywords)
 	log.Printf("Using log analyzer URL: %s", logAnalyzerURL)
 	log.Printf("Using root cause predictor URL: %s", rootCausePredictorURL)
 	log.Printf("Using knowledge base URL: %s", knowledgeBaseURL)
@@ -206,6 +243,26 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
+
+		// After the end-to-end flow, trigger the Incident Integrator if code-related
+		if isCodeRelated(req.RootCause) {
+			incident := map[string]interface{}{
+				"error_summary": req.RootCause,
+				"error_details": req.RootCause, // You can expand this with more context if available
+				"file_path":     "",            // Fill if you have this info
+				"line_number":   0,             // Fill if you have this info
+			}
+			incidentBody, _ := json.Marshal(incident)
+			go func() {
+				resp, err := http.Post(incidentIntegratorURL, "application/json", bytes.NewBuffer(incidentBody))
+				if err != nil {
+					log.Printf("Failed to notify Incident Integrator: %v", err)
+					return
+				}
+				defer resp.Body.Close()
+				log.Printf("Incident Integrator notified, status: %v", resp.Status)
+			}()
+		}
 	})
 
 	log.Println("Go backend listening on :8080")

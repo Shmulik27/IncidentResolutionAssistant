@@ -20,4 +20,7 @@ run_test "Go Backend Tests" "cd go-backend && go test -v && cd - > /dev/null"
 echo -e "\n${GREEN}===== End-to-End Tests =====${NC}"
 python3 test_e2e.py
 
+echo -e "\n${GREEN}===== Python Incident Integrator Tests =====${NC}"
+cd python-services/incident_integrator && pytest && cd - > /dev/null
+
 echo -e "\n${GREEN}ALL TESTS PASSED!${NC}" 

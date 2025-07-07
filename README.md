@@ -4,12 +4,13 @@
 A smart assistant that helps DevOps/SRE teams diagnose and resolve production issues faster using AI. It leverages log analysis, knowledge base search, root cause prediction, and action recommendation—all powered by ML.
 
 ## Architecture
-- **Go Backend**: Orchestrates requests, exposes unified API.
+- **Go Backend**: Orchestrates requests, exposes unified API, and conditionally triggers the Incident Integrator for code-related incidents.
 - **Python Microservices**:
   - **Log Analyzer**: ML-based anomaly detection (Isolation Forest + NLP)
   - **Root Cause Predictor**: ML classifier (LogisticRegression)
   - **Knowledge Base Search**: Semantic search (sentence-transformers + FAISS)
   - **Action Recommender**: ML-based (LogisticRegression)
+  - **Incident Integrator**: Integrates with GitHub and Jira to automate ticketing and closure for code-related incidents.
 
 ### System Design Diagram
 
@@ -20,6 +21,9 @@ flowchart TD
     GoBackend --> RootCausePredictor["Root Cause Predictor (Python)"]
     GoBackend --> KnowledgeBase["Knowledge Base Search (Python)"]
     GoBackend --> ActionRecommender["Action Recommender (Python)"]
+    GoBackend -- "(if code-related)" --> IncidentIntegrator["Incident Integrator (Python)"]
+    IncidentIntegrator --> Jira["Jira"]
+    IncidentIntegrator --> GitHub["GitHub"]
     LogAnalyzer -- "/analyze" --> GoBackend
     RootCausePredictor -- "/predict" --> GoBackend
     KnowledgeBase -- "/search" --> GoBackend
@@ -29,6 +33,7 @@ flowchart TD
         RootCausePredictor
         KnowledgeBase
         ActionRecommender
+        IncidentIntegrator
     end
     GoBackend -- "/metrics, /health" --> Prometheus[(Prometheus)]
     PythonServices -- "/metrics, /health" --> Prometheus[(Prometheus)]
@@ -43,7 +48,9 @@ flowchart TD
    - `/recommend` → Action Recommender
 3. Each **Python microservice** processes the request (using ML/NLP/Vector Search) and returns a response to the Go Backend.
 4. **Go Backend** aggregates and returns the result to the user or alerting system.
-5. All services expose `/health` and `/metrics` endpoints for monitoring (e.g., Prometheus).
+5. **If the root cause is code-related** (as determined by keywords in `code_keywords.txt`), the Go Backend triggers the Incident Integrator by sending an incident event.
+6. **Incident Integrator** checks for existing Jira tickets, assigns to the relevant developer, and monitors GitHub for PRs that fix the issue. When a fix is merged, it automatically closes the Jira ticket.
+7. All services expose `/health` and `/metrics` endpoints for monitoring (e.g., Prometheus).
 
 ## Example Flow: End-to-End Incident Resolution
 

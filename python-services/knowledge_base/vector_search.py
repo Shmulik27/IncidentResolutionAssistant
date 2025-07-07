@@ -40,7 +40,7 @@ incident_embeddings = MODEL.encode(incident_texts, convert_to_numpy=True)
 # Build FAISS index
 DIM = incident_embeddings.shape[1]
 index = faiss.IndexFlatL2(DIM)
-index.add(incident_embeddings)
+index.add(incident_embeddings.reshape(-1, DIM))  # type: ignore
 
 class SearchRequest(BaseModel):
     query: str
@@ -71,7 +71,7 @@ def search_incidents(request: SearchRequest):
             logger.info("No query provided in request.")
             return []
         query_emb = MODEL.encode([request.query], convert_to_numpy=True)
-        D, I = index.search(query_emb, request.top_k)
+        D, I = index.search(query_emb, request.top_k)  # type: ignore
         results = []
         for idx, dist in zip(I[0], D[0]):
             incident = INCIDENTS[idx]
