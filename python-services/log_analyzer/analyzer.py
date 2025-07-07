@@ -11,7 +11,11 @@ import numpy as np
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 import scipy.sparse as sparse
 
-app = FastAPI()
+app = FastAPI(
+    title="Log Analyzer Service",
+    description="Analyzes logs and extracts relevant information for incident resolution.",
+    version="1.0.0"
+)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('log_analyzer_requests_total', 'Total requests to log analyzer', ['endpoint'])

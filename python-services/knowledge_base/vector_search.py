@@ -7,7 +7,11 @@ import numpy as np
 import logging
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
-app = FastAPI()
+app = FastAPI(
+    title="Knowledge Base Service",
+    description="Provides vector search capabilities over the incident knowledge base.",
+    version="1.0.0"
+)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('kb_search_requests_total', 'Total requests to knowledge base search', ['endpoint'])

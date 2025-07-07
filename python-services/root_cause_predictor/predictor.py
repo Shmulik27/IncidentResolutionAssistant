@@ -8,7 +8,11 @@ from sklearn.linear_model import LogisticRegression
 import numpy as np
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
-app = FastAPI()
+app = FastAPI(
+    title="Root Cause Predictor Service",
+    description="Predicts the root cause of incidents based on log analysis.",
+    version="1.0.0"
+)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('root_cause_predictor_requests_total', 'Total requests to root cause predictor', ['endpoint'])

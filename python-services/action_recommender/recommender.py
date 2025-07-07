@@ -7,7 +7,11 @@ import numpy as np
 import logging
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 
-app = FastAPI()
+app = FastAPI(
+    title="Action Recommender Service",
+    description="Recommends actions to resolve incidents based on analysis and knowledge base.",
+    version="1.0.0"
+)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('action_recommender_requests_total', 'Total requests to action recommender', ['endpoint'])
