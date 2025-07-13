@@ -3,6 +3,7 @@ import hmac
 import hashlib
 import logging
 from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from github import Github
 from jira import JIRA
@@ -17,6 +18,15 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Config
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO")
@@ -27,6 +37,10 @@ JIRA_PROJECT = os.getenv("JIRA_PROJECT")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 
 logging.basicConfig(level=logging.INFO)
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 class IncidentEvent(BaseModel):
     error_summary: str

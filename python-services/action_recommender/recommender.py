@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -11,6 +12,15 @@ app = FastAPI(
     title="Action Recommender Service",
     description="Recommends actions to resolve incidents based on analysis and knowledge base.",
     version="1.0.0"
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Prometheus metrics

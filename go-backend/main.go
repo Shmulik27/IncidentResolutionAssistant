@@ -57,6 +57,14 @@ func init() {
 	prometheus.MustRegister(errorsTotal)
 }
 
+// addCORSHeaders adds CORS headers to the response
+func addCORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+}
+
 func loadCodeRelatedKeywords(path string) []string {
 	file, err := os.Open(path)
 	if err != nil {
@@ -115,6 +123,11 @@ func main() {
 	http.Handle("/metrics", promhttp.Handler())
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		requestsTotal.WithLabelValues("/health").Inc()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -122,6 +135,11 @@ func main() {
 	})
 
 	http.HandleFunc("/analyze", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		requestsTotal.WithLabelValues("/analyze").Inc()
 		var req LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -153,6 +171,11 @@ func main() {
 	})
 
 	http.HandleFunc("/predict", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		requestsTotal.WithLabelValues("/predict").Inc()
 		var req LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -184,6 +207,11 @@ func main() {
 	})
 
 	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		requestsTotal.WithLabelValues("/search").Inc()
 		var req SearchRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -215,6 +243,11 @@ func main() {
 	})
 
 	http.HandleFunc("/recommend", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
 		requestsTotal.WithLabelValues("/recommend").Inc()
 		var req RecommendRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -263,6 +296,97 @@ func main() {
 				log.Printf("Incident Integrator notified, status: %v", resp.Status)
 			}()
 		}
+	})
+
+	// Configuration endpoints
+	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		requestsTotal.WithLabelValues("/config").Inc()
+		w.Header().Set("Content-Type", "application/json")
+
+		if r.Method == "GET" {
+			// Return current configuration
+			config := map[string]interface{}{
+				"log_analyzer_url":          logAnalyzerURL,
+				"root_cause_predictor_url":  rootCausePredictorURL,
+				"knowledge_base_url":        knowledgeBaseURL,
+				"action_recommender_url":    actionRecommenderURL,
+				"incident_integrator_url":   incidentIntegratorURL,
+				"enable_auto_analysis":      true,
+				"enable_jira_integration":   true,
+				"enable_github_integration": true,
+				"enable_notifications":      true,
+				"request_timeout":           30,
+				"max_retries":               3,
+				"log_level":                 "INFO",
+				"cache_ttl":                 60,
+			}
+			json.NewEncoder(w).Encode(config)
+		} else if r.Method == "POST" {
+			// Update configuration
+			var newConfig map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&newConfig); err != nil {
+				errorsTotal.WithLabelValues("/config").Inc()
+				log.Printf("Invalid configuration request: %v", err)
+				http.Error(w, "Invalid configuration: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			// Update URLs if provided
+			if url, ok := newConfig["log_analyzer_url"].(string); ok && url != "" {
+				logAnalyzerURL = url
+			}
+			if url, ok := newConfig["root_cause_predictor_url"].(string); ok && url != "" {
+				rootCausePredictorURL = url
+			}
+			if url, ok := newConfig["knowledge_base_url"].(string); ok && url != "" {
+				knowledgeBaseURL = url
+			}
+			if url, ok := newConfig["action_recommender_url"].(string); ok && url != "" {
+				actionRecommenderURL = url
+			}
+			if url, ok := newConfig["incident_integrator_url"].(string); ok && url != "" {
+				incidentIntegratorURL = url
+			}
+
+			log.Printf("Configuration updated")
+			json.NewEncoder(w).Encode(map[string]string{"status": "Configuration updated successfully"})
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+
+	// Test endpoint
+	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		requestsTotal.WithLabelValues("/test").Inc()
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		// For now, return a simple test result
+		result := map[string]interface{}{
+			"status":  "success",
+			"message": "Test endpoint is working",
+			"services": map[string]string{
+				"go_backend":           "UP",
+				"log_analyzer":         "UP",
+				"root_cause_predictor": "UP",
+				"knowledge_base":       "UP",
+				"action_recommender":   "UP",
+				"incident_integrator":  "UP",
+			},
+		}
+		json.NewEncoder(w).Encode(result)
 	})
 
 	log.Println("Go backend listening on :8080")

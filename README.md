@@ -11,6 +11,7 @@ A smart assistant that helps DevOps/SRE teams diagnose and resolve production is
   - **Knowledge Base Search**: Semantic search (sentence-transformers + FAISS)
   - **Action Recommender**: ML-based (LogisticRegression)
   - **Incident Integrator**: Integrates with GitHub and Jira to automate ticketing and closure for code-related incidents.
+- **React Frontend**: Modern web dashboard for monitoring services, analyzing incidents, running tests, and managing configuration.
 
 ### System Design Diagram
 
@@ -125,12 +126,29 @@ Suppose an alerting system detects unusual activity in your production logs and 
    ./run_all_tests.sh
    ```
 
+### Frontend Development
+1. Navigate to the frontend directory and install dependencies:
+   ```sh
+   cd frontend
+   npm install
+   ```
+2. Start the development server:
+   ```sh
+   npm start
+   ```
+3. The dashboard will be available at `http://localhost:3000`
+
 ### Docker Compose (Recommended)
 1. Build and start all services:
    ```sh
    docker-compose up --build
-   ```
+
 2. The Go API will be available at `http://localhost:8080`.
+3. For the frontend, navigate to `frontend/` and run:
+   ```sh
+   npm install && npm start
+   ```
+4. The dashboard will be available at `http://localhost:3000`.
 
 ## API Endpoints
 
@@ -188,3 +206,102 @@ Each exposes its own `/health`, `/metrics`, and main endpoint (see code for deta
 
 ---
 This project is production-ready and easy to extend for your team's needs! 
+
+---
+
+This error means the Go backend (running in Docker) is trying to reach the Log Analyzer at `http://localhost:8001`, but it gets "connection refused". This is a classic Docker networking issue.
+
+**Why?**
+- When the Go backend runs in a Docker container, `localhost` refers to the container itself, not your host.
+- The Log Analyzer is running in a different container, so `localhost:8001` does not work from inside the Go backend container.
+- In Docker Compose, containers communicate using their service names (e.g., `log-analyzer:8000`).
+
+---
+
+## **How to Fix**
+
+### 1. **Use Docker service names for internal requests**
+
+- In your Go backend, set the URLs for the Python services to use the Docker Compose service names:
+  - Log Analyzer: `http://log-analyzer:8000/analyze`
+  - Root Cause Predictor: `http://root-cause-predictor:8000/predict`
+  - Knowledge Base: `http://knowledge-base:8000/search`
+  - Action Recommender: `http://action-recommender:8000/recommend`
+  - Incident Integrator: `http://incident-integrator:8000/incident`
+
+**These are already the defaults in your Go backend if you do not override the environment variables.**
+
+---
+
+### 2. **Frontend should use `localhost:8001`, Backend should use service names**
+
+- **Frontend** (browser) talks to `localhost:8001`, etc.
+- **Go backend** (in Docker) talks to `log-analyzer:8000`, etc.
+
+---
+
+### 3. **How to set this up**
+
+- In your Go backend Docker Compose service, **do not override the URLs to use `localhost`**.
+- If you POST to `/config` with `localhost:8001` etc., the Go backend will try to use those, which will fail in Docker.
+- **Let the Go backend use the default service names for internal calls.**
+
+---
+
+### 4. **How to fix your config**
+
+**Reset the config to use Docker service names:**
+
+```bash
+curl -X POST http://localhost:8080/config -H "Content-Type: application/json" -d '{
+  "log_analyzer_url": "http://log-analyzer:8000/analyze",
+  "root_cause_predictor_url": "http://root-cause-predictor:8000/predict",
+  "knowledge_base_url": "http://knowledge-base:8000/search",
+  "action_recommender_url": "http://action-recommender:8000/recommend",
+  "incident_integrator_url": "http://incident-integrator:8000/incident"
+}'
+```
+
+---
+
+### 5. **Summary Table**
+
+| Who         | URL to use for Log Analyzer      |
+|-------------|----------------------------------|
+| Frontend    | http://localhost:8001            |
+| Go backend  | http://log-analyzer:8000/analyze |
+
+---
+
+**After you reset the config, the error will go away.**  
+Let me know if you want this automated or if you need help with any other part! 
+
+---
+
+To reset the config so your Go backend uses the correct Docker service names (and not `localhost`), just run this command from your host terminal:
+
+```bash
+curl -X POST http://localhost:8080/config -H "Content-Type: application/json" -d '{
+  "log_analyzer_url": "http://log-analyzer:8000/analyze",
+  "root_cause_predictor_url": "http://root-cause-predictor:8000/predict",
+  "knowledge_base_url": "http://knowledge-base:8000/search",
+  "action_recommender_url": "http://action-recommender:8000/recommend",
+  "incident_integrator_url": "http://incident-integrator:8000/incident"
+}'
+```
+
+**What this does:**
+- It tells the Go backend (running in Docker) to use the Docker Compose service names for all internal requests.
+- This will fix the "connection refused" errors.
+
+**After running this:**
+- The Go backend will be able to talk to all Python services.
+- Your frontend will still use `localhost:8001`, etc. (which is correct for browser-to-container communication).
+
+**You can verify the config was reset by running:**
+```bash
+curl http://localhost:8080/config
+```
+You should see the URLs set to the Docker service names.
+
+Let me know if you want a button for this in the UI or need any more help! 
