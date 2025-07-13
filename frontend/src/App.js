@@ -19,19 +19,31 @@ import {
   BugReport as BugReportIcon,
   PlayArrow as TestIcon,
   Settings as SettingsIcon,
-  Menu as MenuIcon
+  Storage as StorageIcon,
+  Menu as MenuIcon,
+  Analytics as AnalyticsIcon,
+  Timeline as TimelineIcon,
+  Assessment as AssessmentIcon
 } from '@mui/icons-material';
 import Dashboard from './components/Dashboard';
 import IncidentAnalyzer from './components/IncidentAnalyzer';
 import TestRunner from './components/TestRunner';
 import Configuration from './components/Configuration';
+import K8sLogScanner from './components/K8sLogScanner';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import RealTimeMetrics from './components/RealTimeMetrics';
+import IncidentAnalytics from './components/IncidentAnalytics';
 
 const drawerWidth = 240;
 
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+  { text: 'Analytics Dashboard', icon: <AnalyticsIcon />, path: '/analytics' },
+  { text: 'Real-Time Metrics', icon: <TimelineIcon />, path: '/metrics' },
+  { text: 'Incident Analytics', icon: <AssessmentIcon />, path: '/incident-analytics' },
   { text: 'Incident Analyzer', icon: <BugReportIcon />, path: '/analyzer' },
   { text: 'Test Runner', icon: <TestIcon />, path: '/tests' },
+  { text: 'K8s Log Scanner', icon: <StorageIcon />, path: '/k8s' },
   { text: 'Configuration', icon: <SettingsIcon />, path: '/config' }
 ];
 
@@ -140,8 +152,12 @@ function App() {
         >
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/metrics" element={<RealTimeMetrics />} />
+            <Route path="/incident-analytics" element={<IncidentAnalytics />} />
             <Route path="/analyzer" element={<IncidentAnalyzer />} />
             <Route path="/tests" element={<TestRunner />} />
+            <Route path="/k8s" element={<K8sLogScanner />} />
             <Route path="/config" element={<Configuration />} />
           </Routes>
         </Box>

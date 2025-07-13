@@ -96,5 +96,36 @@ export const api = {
     } catch (error) {
       throw new Error('Failed to update configuration');
     }
+  },
+
+  // K8s Log Scanner endpoints
+  async getK8sClusters() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/k8s-clusters`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching K8s clusters:', error);
+      throw new Error('Failed to fetch K8s clusters');
+    }
+  },
+
+  async scanK8sLogs(scanRequest) {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/scan-k8s-logs`, scanRequest);
+      return response.data;
+    } catch (error) {
+      console.error('Error scanning K8s logs:', error);
+      throw new Error('Failed to scan K8s logs');
+    }
+  },
+
+  async getK8sNamespaces(cluster) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/k8s-namespaces?cluster=${encodeURIComponent(cluster)}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching K8s namespaces:', error);
+      throw new Error('Failed to fetch K8s namespaces');
+    }
   }
 }; 

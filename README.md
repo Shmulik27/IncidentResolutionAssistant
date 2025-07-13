@@ -11,6 +11,7 @@ A smart assistant that helps DevOps/SRE teams diagnose and resolve production is
   - **Knowledge Base Search**: Semantic search (sentence-transformers + FAISS)
   - **Action Recommender**: ML-based (LogisticRegression)
   - **Incident Integrator**: Integrates with GitHub and Jira to automate ticketing and closure for code-related incidents.
+- **K8s Log Scanner**: Scans logs from EKS and GKE Kubernetes clusters for incident detection.
 - **React Frontend**: Modern web dashboard for monitoring services, analyzing incidents, running tests, and managing configuration.
 
 ### System Design Diagram
@@ -23,8 +24,11 @@ flowchart TD
     GoBackend --> KnowledgeBase["Knowledge Base Search (Python)"]
     GoBackend --> ActionRecommender["Action Recommender (Python)"]
     GoBackend -- "(if code-related)" --> IncidentIntegrator["Incident Integrator (Python)"]
+    GoBackend --> K8sLogScanner["K8s Log Scanner (Python)"]
     IncidentIntegrator --> Jira["Jira"]
     IncidentIntegrator --> GitHub["GitHub"]
+    K8sLogScanner --> EKS["EKS Cluster"]
+    K8sLogScanner --> GKE["GKE Cluster"]
     LogAnalyzer -- "/analyze" --> GoBackend
     RootCausePredictor -- "/predict" --> GoBackend
     KnowledgeBase -- "/search" --> GoBackend
@@ -35,6 +39,7 @@ flowchart TD
         KnowledgeBase
         ActionRecommender
         IncidentIntegrator
+        K8sLogScanner
     end
     GoBackend -- "/metrics, /health" --> Prometheus[(Prometheus)]
     PythonServices -- "/metrics, /health" --> Prometheus[(Prometheus)]
@@ -157,6 +162,8 @@ Suppose an alerting system detects unusual activity in your production logs and 
 - `POST /predict` — Predict root cause from logs
 - `POST /search` — Search similar incidents (vector search)
 - `POST /recommend` — Recommend actions based on root cause
+- `POST /scan-k8s-logs` — Scan logs from Kubernetes clusters
+- `GET /k8s-clusters` — List available Kubernetes clusters
 - `GET /health` — Health check
 
 ### Python Microservices

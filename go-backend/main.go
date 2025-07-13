@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -32,6 +33,7 @@ var rootCausePredictorURL string
 var knowledgeBaseURL string
 var actionRecommenderURL string
 var incidentIntegratorURL string
+var k8sLogScannerURL string
 var codeRelatedKeywords []string
 
 // Prometheus metrics
@@ -112,6 +114,10 @@ func main() {
 	incidentIntegratorURL = os.Getenv("INCIDENT_INTEGRATOR_URL")
 	if incidentIntegratorURL == "" {
 		incidentIntegratorURL = "http://incident-integrator:8000/incident"
+	}
+	k8sLogScannerURL = os.Getenv("K8S_LOG_SCANNER_URL")
+	if k8sLogScannerURL == "" {
+		k8sLogScannerURL = "http://k8s-log-scanner:8000"
 	}
 	codeRelatedKeywords = loadCodeRelatedKeywords("code_keywords.txt")
 	log.Printf("Loaded code-related keywords: %v", codeRelatedKeywords)
@@ -387,6 +393,101 @@ func main() {
 			},
 		}
 		json.NewEncoder(w).Encode(result)
+	})
+
+	// K8s Log Scanner endpoint
+	http.HandleFunc("/scan-k8s-logs", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		requestsTotal.WithLabelValues("/scan-k8s-logs").Inc()
+
+		if r.Method != "POST" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Forward the request to the K8s log scanner service
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			errorsTotal.WithLabelValues("/scan-k8s-logs").Inc()
+			log.Printf("Failed to read request body: %v", err)
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
+
+		resp, err := http.Post(k8sLogScannerURL+"/scan-logs", "application/json", bytes.NewBuffer(body))
+		if err != nil {
+			errorsTotal.WithLabelValues("/scan-k8s-logs").Inc()
+			log.Printf("Failed to contact K8s log scanner: %v", err)
+			http.Error(w, "Failed to contact K8s log scanner: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
+	})
+
+	// K8s Clusters endpoint
+	http.HandleFunc("/k8s-clusters", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		requestsTotal.WithLabelValues("/k8s-clusters").Inc()
+
+		if r.Method != "GET" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		resp, err := http.Get(k8sLogScannerURL + "/clusters")
+		if err != nil {
+			errorsTotal.WithLabelValues("/k8s-clusters").Inc()
+			log.Printf("Failed to contact K8s log scanner: %v", err)
+			http.Error(w, "Failed to contact K8s log scanner: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
+	})
+
+	// K8s Namespaces endpoint
+	http.HandleFunc("/k8s-namespaces", func(w http.ResponseWriter, r *http.Request) {
+		addCORSHeaders(w)
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		requestsTotal.WithLabelValues("/k8s-namespaces").Inc()
+		if r.Method != "GET" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		cluster := r.URL.Query().Get("cluster")
+		if cluster == "" {
+			http.Error(w, "Missing cluster parameter", http.StatusBadRequest)
+			return
+		}
+		resp, err := http.Get(k8sLogScannerURL + "/namespaces/" + url.PathEscape(cluster))
+		if err != nil {
+			errorsTotal.WithLabelValues("/k8s-namespaces").Inc()
+			log.Printf("Failed to contact K8s log scanner: %v", err)
+			http.Error(w, "Failed to contact K8s log scanner: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		io.Copy(w, resp.Body)
 	})
 
 	log.Println("Go backend listening on :8080")
