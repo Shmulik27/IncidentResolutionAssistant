@@ -7,7 +7,7 @@ from pydantic import BaseModel
 from github import Github
 from jira import JIRA
 from dotenv import load_dotenv
-from .utils import get_code_owner, get_codeowner_from_file
+from utils import get_code_owner, get_codeowner_from_file
 
 load_dotenv()
 
