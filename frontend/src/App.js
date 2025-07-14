@@ -37,12 +37,17 @@ import IncidentAnalytics from './components/IncidentAnalytics';
 const drawerWidth = 240;
 
 const menuItems = [
-  { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
-  { text: 'Analytics Dashboard', icon: <AnalyticsIcon />, path: '/analytics' },
-  { text: 'Real-Time Metrics', icon: <TimelineIcon />, path: '/metrics' },
-  { text: 'Incident Analytics', icon: <AssessmentIcon />, path: '/incident-analytics' },
+  {
+    text: 'Dashboard',
+    icon: <DashboardIcon />,
+    path: '/',
+    children: [
+      { text: 'Analytics Dashboard', icon: <AnalyticsIcon />, path: '/dashboard/analytics' },
+      { text: 'Incident Analytics', icon: <AssessmentIcon />, path: '/dashboard/incident-analytics' },
+      { text: 'Real-Time Metrics', icon: <TimelineIcon />, path: '/dashboard/metrics' }
+    ]
+  },
   { text: 'Incident Analyzer', icon: <BugReportIcon />, path: '/analyzer' },
-  { text: 'Test Runner', icon: <TestIcon />, path: '/tests' },
   { text: 'K8s Log Scanner', icon: <StorageIcon />, path: '/k8s' },
   { text: 'Configuration', icon: <SettingsIcon />, path: '/config' }
 ];
@@ -56,6 +61,39 @@ function App() {
     setMobileOpen(!mobileOpen);
   };
 
+  const renderMenuItems = (items) => (
+    items.map((item) => (
+      item.children ? (
+        <React.Fragment key={item.text}>
+          <ListItem 
+            button 
+            component="a"
+            href={item.path}
+            onClick={() => isMobile && setMobileOpen(false)}
+          >
+            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.text} />
+          </ListItem>
+          <List component="div" disablePadding sx={{ pl: 4 }}>
+            {renderMenuItems(item.children)}
+          </List>
+        </React.Fragment>
+      ) : (
+        <ListItem 
+          button 
+          key={item.text}
+          component="a"
+          href={item.path}
+          onClick={() => isMobile && setMobileOpen(false)}
+          sx={item.path.startsWith('/dashboard/') ? { pl: 4 } : {}}
+        >
+          <ListItemIcon>{item.icon}</ListItemIcon>
+          <ListItemText primary={item.text} />
+        </ListItem>
+      )
+    ))
+  );
+
   const drawer = (
     <Box>
       <Toolbar>
@@ -64,20 +102,7 @@ function App() {
         </Typography>
       </Toolbar>
       <List>
-        {menuItems.map((item) => (
-          <ListItem 
-            button 
-            key={item.text}
-            component="a"
-            href={item.path}
-            onClick={() => isMobile && setMobileOpen(false)}
-          >
-            <ListItemIcon>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.text} />
-          </ListItem>
-        ))}
+        {renderMenuItems(menuItems)}
       </List>
     </Box>
   );
@@ -152,11 +177,10 @@ function App() {
         >
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/analytics" element={<AnalyticsDashboard />} />
-            <Route path="/metrics" element={<RealTimeMetrics />} />
-            <Route path="/incident-analytics" element={<IncidentAnalytics />} />
+            <Route path="/dashboard/analytics" element={<AnalyticsDashboard />} />
+            <Route path="/dashboard/incident-analytics" element={<IncidentAnalytics />} />
+            <Route path="/dashboard/metrics" element={<RealTimeMetrics />} />
             <Route path="/analyzer" element={<IncidentAnalyzer />} />
-            <Route path="/tests" element={<TestRunner />} />
             <Route path="/k8s" element={<K8sLogScanner />} />
             <Route path="/config" element={<Configuration />} />
           </Routes>
