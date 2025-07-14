@@ -183,7 +183,7 @@ const IncidentAnalytics = () => {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" gutterBottom>
@@ -227,7 +227,7 @@ const IncidentAnalytics = () => {
       )}
 
       {/* Key Metrics Cards */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -294,7 +294,7 @@ const IncidentAnalytics = () => {
       </Grid>
 
       {/* Charts Row 1 */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} lg={8}>
           <Card>
             <CardContent>
@@ -348,7 +348,7 @@ const IncidentAnalytics = () => {
       </Grid>
 
       {/* Charts Row 2 */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -393,58 +393,60 @@ const IncidentAnalytics = () => {
       </Grid>
 
       {/* Recent Incidents Table */}
-      <Card>
-        <CardContent>
-          <Typography variant="h6" gutterBottom>
-            Recent Incidents
-          </Typography>
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell>Severity</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Resolution Time</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {analytics.incidents.slice(0, 10).map((incident) => (
-                  <TableRow key={incident.id}>
-                    <TableCell>{incident.title}</TableCell>
-                    <TableCell>{incident.service}</TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={incident.severity} 
-                        color={getSeverityColor(incident.severity)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={incident.status} 
-                        color={getStatusColor(incident.status)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>{incident.category}</TableCell>
-                    <TableCell>{incident.createdAt}</TableCell>
-                    <TableCell>
-                      {incident.resolutionTime 
-                        ? `${incident.resolutionTime}h` 
-                        : incident.status === 'Open' ? 'In Progress' : 'N/A'
-                      }
-                    </TableCell>
+      <Box sx={{ width: '100%', overflowX: 'auto', mb: 3 }}>
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Recent Incidents
+            </Typography>
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Title</TableCell>
+                    <TableCell>Service</TableCell>
+                    <TableCell>Severity</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell>Resolution Time</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </CardContent>
-      </Card>
+                </TableHead>
+                <TableBody>
+                  {analytics.incidents.slice(0, 10).map((incident) => (
+                    <TableRow key={incident.id}>
+                      <TableCell>{incident.title}</TableCell>
+                      <TableCell>{incident.service}</TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={incident.severity} 
+                          color={getSeverityColor(incident.severity)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Chip 
+                          label={incident.status} 
+                          color={getStatusColor(incident.status)}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>{incident.category}</TableCell>
+                      <TableCell>{incident.createdAt}</TableCell>
+                      <TableCell>
+                        {incident.resolutionTime 
+                          ? `${incident.resolutionTime}h` 
+                          : incident.status === 'Open' ? 'In Progress' : 'N/A'
+                        }
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </CardContent>
+        </Card>
+      </Box>
     </Box>
   );
 };

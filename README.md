@@ -12,7 +12,7 @@ A smart assistant that helps DevOps/SRE teams diagnose and resolve production is
   - **Action Recommender**: ML-based (LogisticRegression)
   - **Incident Integrator**: Integrates with GitHub and Jira to automate ticketing and closure for code-related incidents.
 - **K8s Log Scanner**: Scans logs from EKS and GKE Kubernetes clusters for incident detection.
-- **React Frontend**: Modern web dashboard for monitoring services, analyzing incidents, running tests, and managing configuration.
+- **React Frontend**: Modern web dashboard for monitoring services, analyzing incidents, and managing configuration.
 
 ### System Design Diagram
 
@@ -45,71 +45,35 @@ flowchart TD
     PythonServices -- "/metrics, /health" --> Prometheus[(Prometheus)]
 ```
 
-### Request/Response Flow
-1. **User/Alert** triggers a request to the Go Backend (API Gateway).
-2. **Go Backend** receives the request and routes it to the appropriate Python microservice:
-   - `/analyze` → Log Analyzer
-   - `/predict` → Root Cause Predictor
-   - `/search` → Knowledge Base Search
-   - `/recommend` → Action Recommender
-3. Each **Python microservice** processes the request (using ML/NLP/Vector Search) and returns a response to the Go Backend.
-4. **Go Backend** aggregates and returns the result to the user or alerting system.
-5. **If the root cause is code-related** (as determined by keywords in `code_keywords.txt`), the Go Backend triggers the Incident Integrator by sending an incident event.
-6. **Incident Integrator** checks for existing Jira tickets, assigns to the relevant developer, and monitors GitHub for PRs that fix the issue. When a fix is merged, it automatically closes the Jira ticket.
-7. All services expose `/health` and `/metrics` endpoints for monitoring (e.g., Prometheus).
+## Frontend Navigation & Structure
 
-## Example Flow: End-to-End Incident Resolution
+- **Dashboard** (route: `/`)
+  - **Analytics Dashboard** (`/dashboard/analytics`)
+  - **Incident Analytics** (`/dashboard/incident-analytics`)
+  - **Real-Time Metrics** (`/dashboard/metrics`)
+- **Incident Analyzer** (`/analyzer`)
+- **K8s Log Scanner** (`/k8s`)
+- **Configuration** (`/config`)
 
-Suppose an alerting system detects unusual activity in your production logs and sends a request to the Go Backend. Here's how the system processes the incident:
+> **Note:** The Test Runner has been removed from the UI. All analytics and metrics are now nested under Dashboard for a cleaner, more intuitive navigation experience.
 
-### 1. **Log Analysis**
-- **Input:** The alerting system (or user) sends a POST request to `/analyze` with recent log lines:
-  ```json
-  {
-    "logs": [
-      "2024-07-07 12:00:01 ERROR Database connection failed",
-      "2024-07-07 12:00:02 WARN Retrying connection",
-      "2024-07-07 12:00:03 ERROR Database connection failed"
-    ]
-  }
-  ```
-- **Processing:** The Go Backend forwards this to the Log Analyzer service, which uses ML/NLP to detect anomalies and extract key events.
-- **Output:** The Log Analyzer returns a summary of anomalies and relevant log events.
+### Sidebar Customization
+- To add or remove sidebar items, edit the `menuItems` array in `frontend/src/App.js`.
+- To nest items, add a `children` array to a menu item.
+- Update route paths in the `<Routes>` section to match sidebar structure.
 
-### 2. **Root Cause Prediction**
-- **Input:** The Go Backend sends the analyzed log events to the Root Cause Predictor via `/predict`.
-- **Processing:** The Root Cause Predictor uses a trained ML model to infer the most likely root cause (e.g., "Database outage").
-- **Output:** The predicted root cause is returned to the Go Backend.
+### Extending the Dashboard
+- To add new analytics widgets, create a new component in `frontend/src/components/` and add a route and sidebar entry as above.
+- For drill-down analytics, use nested routes and pass parameters via URL or React Router state.
 
-### 3. **Knowledge Base Search**
-- **Input:** The Go Backend queries the Knowledge Base service at `/search` with the root cause or log context.
-- **Processing:** The Knowledge Base uses semantic vector search to find similar past incidents and their resolutions.
-- **Output:** A list of similar incidents and their solutions is returned.
-
-### 4. **Action Recommendation**
-- **Input:** The Go Backend sends the root cause and context to the Action Recommender at `/recommend`.
-- **Processing:** The Action Recommender suggests concrete remediation steps (e.g., "Restart the database service").
-- **Output:** Recommended actions are returned.
-
-### 5. **Aggregated Response**
-- **Output:** The Go Backend aggregates all results and returns a unified response to the user or alerting system:
-  ```json
-  {
-    "anomalies": [...],
-    "root_cause": "Database outage",
-    "similar_incidents": [
-      {"id": 42, "summary": "2023-11-01: Database outage due to network partition", "resolution": "Restarted DB and fixed network config"}
-    ],
-    "recommended_actions": [
-      "Check database server status",
-      "Restart the database service",
-      "Verify network connectivity"
-    ]
-  }
-  ```
-
-### 6. **Monitoring**
-- All services expose `/metrics` and `/health` endpoints for observability and orchestration.
+## K8s Log Scanner Cloud Requirements
+- **EKS Support:**
+  - AWS CLI and credentials must be available in the container.
+  - Mount your AWS credentials and set `AWS_PROFILE` as needed.
+- **GKE Support:**
+  - Google Cloud SDK and `gke-gcloud-auth-plugin` must be installed in the container.
+  - Mount your GCP credentials and ensure your kubeconfig uses the new `gke-gcloud-auth-plugin` (not the deprecated `gcp` auth-provider).
+- See the `python-services/k8s_log_scanner/Dockerfile` for details.
 
 ## Setup & Running
 
@@ -117,6 +81,7 @@ Suppose an alerting system detects unusual activity in your production logs and 
 - Docker & Docker Compose
 - Python 3.10+ (for local dev/tests)
 - Go 1.21+
+- Node.js 18+ (for frontend dev)
 
 ### Local Development
 1. Clone the repo and create a virtual environment:
@@ -147,13 +112,36 @@ Suppose an alerting system detects unusual activity in your production logs and 
 1. Build and start all services:
    ```sh
    docker-compose up --build
-
-2. The Go API will be available at `http://localhost:8080`.
-3. For the frontend, navigate to `frontend/` and run:
-   ```sh
-   npm install && npm start
    ```
-4. The dashboard will be available at `http://localhost:3000`.
+2. The Go API will be available at `http://localhost:8080`.
+3. The frontend will be available at `http://localhost:3000` (served by the new frontend Dockerfile/service).
+
+#### Example `frontend` Dockerfile
+```Dockerfile
+FROM node:18
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+#### Example `docker-compose.yml` entry
+```yaml
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - go-backend
+```
 
 ## API Endpoints
 
@@ -204,12 +192,24 @@ Each exposes its own `/health`, `/metrics`, and main endpoint (see code for deta
 - **ML Models**: Replace or retrain models in each microservice as needed.
 - **Knowledge Base**: Add more incidents/docs to `INCIDENTS` in `knowledge_base/vector_search.py` or connect to a real DB.
 - **Integrations**: Add Slack, Teams, or other chat/alert integrations in the `integrations/` directory.
+- **Sidebar/Navigation**: To add or remove sidebar items, see the Frontend Navigation & Structure section above.
+- **Analytics Widgets**: Add new analytics widgets as new components and routes under Dashboard.
 
 ## Production Notes
 - All services have `/health` and `/metrics` endpoints for orchestration/monitoring.
 - Use Docker Compose or Kubernetes for deployment.
 - Ensure secrets are managed securely (do not commit real secrets).
 - Add logging/monitoring as needed for your environment.
+
+---
+
+## Changelog (Recent Improvements)
+- **Sidebar Hierarchy:** Analytics Dashboard, Incident Analytics, and Real-Time Metrics are now nested under Dashboard for better UX.
+- **Test Runner Removed:** The Test Runner feature has been removed from the UI and codebase.
+- **Frontend Dockerfile:** Added a Dockerfile for the React frontend for Docker Compose and production builds.
+- **K8s Log Scanner:** Enhanced to support both EKS and GKE clusters, with clear credential and plugin requirements.
+- **UI/UX:** Modernized dashboard, analytics, and navigation. Quick actions and statistics are available on the main dashboard.
+- **Extensibility:** Clear instructions for adding new analytics widgets and sidebar items.
 
 ---
 This project is production-ready and easy to extend for your team's needs! 

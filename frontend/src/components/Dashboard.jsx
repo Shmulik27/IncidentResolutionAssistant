@@ -24,6 +24,33 @@ import {
   Assessment
 } from '@mui/icons-material';
 import { api } from '../services/api';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import SettingsIcon from '@mui/icons-material/Settings';
+import RestoreIcon from '@mui/icons-material/Restore';
+
+const DEFAULT_WIDGETS = [
+  { id: 'system-uptime', label: 'System Uptime', render: (quickStats) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><TrendingUp color="primary" sx={{ mr: 2 }} /><Box><Typography variant="h6">System Uptime</Typography><Typography variant="h4" color="primary">{quickStats.systemUptime}%</Typography></Box></Box></CardContent></Card>
+    ) },
+  { id: 'healthy-services', label: 'Healthy Services', render: (quickStats) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><CheckCircle color="success" sx={{ mr: 2 }} /><Box><Typography variant="h6">Healthy Services</Typography><Typography variant="h4" color="success">{quickStats.healthyServices}/{quickStats.totalServices}</Typography></Box></Box></CardContent></Card>
+    ) },
+  { id: 'avg-response', label: 'Avg Response', render: (quickStats) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><Speed color="info" sx={{ mr: 2 }} /><Box><Typography variant="h6">Avg Response</Typography><Typography variant="h4" color="info">{quickStats.avgResponseTime}ms</Typography></Box></Box></CardContent></Card>
+    ) },
+  { id: 'active-issues', label: 'Active Issues', render: (quickStats) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><BugReport color="warning" sx={{ mr: 2 }} /><Box><Typography variant="h6">Active Issues</Typography><Typography variant="h4" color="warning">{quickStats.totalServices - quickStats.healthyServices}</Typography></Box></Box></CardContent></Card>
+    ) },
+];
+
+function getInitialWidgetState() {
+  const saved = localStorage.getItem('dashboardWidgets');
+  if (saved) return JSON.parse(saved);
+  return {
+    order: DEFAULT_WIDGETS.map(w => w.id),
+    visible: Object.fromEntries(DEFAULT_WIDGETS.map(w => [w.id, true]))
+  };
+}
 
 const Dashboard = () => {
   const [serviceStatuses, setServiceStatuses] = useState({});
@@ -36,6 +63,8 @@ const Dashboard = () => {
     avgResponseTime: 0,
     systemUptime: 0
   });
+  const [widgetState, setWidgetState] = useState(getInitialWidgetState());
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const checkServices = async () => {
     setLoading(true);
@@ -72,6 +101,32 @@ const Dashboard = () => {
     const interval = setInterval(checkServices, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('dashboardWidgets', JSON.stringify(widgetState));
+  }, [widgetState]);
+
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const newOrder = Array.from(widgetState.order);
+    const [removed] = newOrder.splice(result.source.index, 1);
+    newOrder.splice(result.destination.index, 0, removed);
+    setWidgetState(ws => ({ ...ws, order: newOrder }));
+  };
+
+  const handleToggleWidget = (id) => {
+    setWidgetState(ws => ({
+      ...ws,
+      visible: { ...ws.visible, [id]: !ws.visible[id] }
+    }));
+  };
+
+  const handleReset = () => {
+    setWidgetState({
+      order: DEFAULT_WIDGETS.map(w => w.id),
+      visible: Object.fromEntries(DEFAULT_WIDGETS.map(w => [w.id, true]))
+    });
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -114,7 +169,7 @@ const Dashboard = () => {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" gutterBottom>
@@ -127,89 +182,53 @@ const Dashboard = () => {
             )}
           </Typography>
         </Box>
-        <Button 
-          variant="contained" 
-          onClick={checkServices}
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={20} /> : <Refresh />}
-        >
-          {loading ? 'Checking...' : 'Refresh Status'}
-        </Button>
+        <Box>
+          <IconButton onClick={() => setSettingsOpen(o => !o)}><SettingsIcon /></IconButton>
+          <IconButton onClick={handleReset}><RestoreIcon /></IconButton>
+        </Box>
       </Box>
-
-      {/* Quick Stats Cards */}
-      <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <TrendingUp color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">System Uptime</Typography>
-                  <Typography variant="h4" color="primary">
-                    {quickStats.systemUptime}%
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <CheckCircle color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Healthy Services</Typography>
-                  <Typography variant="h4" color="success">
-                    {quickStats.healthyServices}/{quickStats.totalServices}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Speed color="info" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Avg Response</Typography>
-                  <Typography variant="h4" color="info">
-                    {quickStats.avgResponseTime}ms
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <BugReport color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Active Issues</Typography>
-                  <Typography variant="h4" color="warning">
-                    {quickStats.totalServices - quickStats.healthyServices}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* Widget Settings */}
+      {settingsOpen && (
+        <Paper sx={{ p: 2, mb: 2 }}>
+          <Typography variant="subtitle1" gutterBottom>Show/Hide Widgets</Typography>
+          {DEFAULT_WIDGETS.map(w => (
+            <Box key={w.id} display="flex" alignItems="center" mb={1}>
+              <input type="checkbox" checked={widgetState.visible[w.id]} onChange={() => handleToggleWidget(w.id)} />
+              <Typography sx={{ ml: 1 }}>{w.label}</Typography>
+            </Box>
+          ))}
+        </Paper>
+      )}
+      {/* Draggable Quick Stats Cards */}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="dashboard-widgets" direction="horizontal">
+          {(provided) => (
+            <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }} ref={provided.innerRef} {...provided.droppableProps}>
+              {widgetState.order.map((id, idx) => {
+                const widget = DEFAULT_WIDGETS.find(w => w.id === id);
+                if (!widgetState.visible[id]) return null;
+                return (
+                  <Draggable key={id} draggableId={id} index={idx}>
+                    {(dragProvided) => (
+                      <Grid item xs={12} sm={6} md={3} ref={dragProvided.innerRef} {...dragProvided.draggableProps} {...dragProvided.dragHandleProps}>
+                        {widget.render(quickStats)}
+                      </Grid>
+                    )}
+                  </Draggable>
+                );
+              })}
+              {provided.placeholder}
+            </Grid>
+          )}
+        </Droppable>
+      </DragDropContext>
 
       {/* Quick Actions */}
-      <Paper sx={{ p: 2, mb: 3 }}>
+      <Paper sx={{ p: 2, mb: 3, overflowX: 'auto' }}>
         <Typography variant="h6" gutterBottom>
           Quick Actions
         </Typography>
-        <Grid container spacing={2}>
+        <Grid container spacing={2} sx={{ flexWrap: { xs: 'nowrap', sm: 'wrap' }, overflowX: 'auto' }}>
           <Grid item>
             <Button 
               variant="outlined" 
@@ -246,7 +265,7 @@ const Dashboard = () => {
         </Alert>
       )}
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         {Object.entries(serviceStatuses).map(([serviceName, status]) => (
           <Grid item xs={12} sm={6} md={4} key={serviceName}>
             <Card>

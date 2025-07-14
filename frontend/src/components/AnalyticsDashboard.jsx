@@ -167,7 +167,7 @@ const AnalyticsDashboard = () => {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" gutterBottom>
@@ -197,7 +197,7 @@ const AnalyticsDashboard = () => {
       )}
 
       {/* Key Metrics Cards */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -264,7 +264,7 @@ const AnalyticsDashboard = () => {
       </Grid>
 
       {/* Charts Row 1 */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} lg={8}>
           <Card>
             <CardContent>
@@ -342,7 +342,7 @@ const AnalyticsDashboard = () => {
       </Grid>
 
       {/* Charts Row 2 */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
@@ -403,12 +403,12 @@ const AnalyticsDashboard = () => {
       </Grid>
 
       {/* Service Metrics Table */}
-      <Card>
+      <Card sx={{ mb: 3, overflowX: 'auto' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Service Performance Metrics
           </Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={2} sx={{ flexWrap: { xs: 'nowrap', sm: 'wrap' }, overflowX: 'auto' }}>
             {Object.entries(analytics.serviceMetrics).map(([service, metrics]) => (
               <Grid item xs={12} sm={6} md={4} key={service}>
                 <Paper variant="outlined" sx={{ p: 2 }}>

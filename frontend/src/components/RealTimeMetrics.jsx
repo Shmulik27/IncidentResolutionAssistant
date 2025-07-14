@@ -146,7 +146,7 @@ const RealTimeMetrics = () => {
   }
 
   return (
-    <Box p={3}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" gutterBottom>
@@ -176,7 +176,7 @@ const RealTimeMetrics = () => {
       )}
 
       {/* System Metrics Cards */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
@@ -259,7 +259,7 @@ const RealTimeMetrics = () => {
       </Grid>
 
       {/* Performance Chart */}
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
         <Grid item xs={12} lg={8}>
           <Card>
             <CardContent>
@@ -325,12 +325,12 @@ const RealTimeMetrics = () => {
       </Grid>
 
       {/* Service Status Grid */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 3, overflowX: 'auto' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             Service Health Status
           </Typography>
-          <Grid container spacing={2}>
+          <Grid container spacing={2} sx={{ flexWrap: { xs: 'nowrap', sm: 'wrap' }, overflowX: 'auto' }}>
             {Object.entries(metrics.services).map(([service, data]) => (
               <Grid item xs={12} sm={6} md={4} key={service}>
                 <Box 
