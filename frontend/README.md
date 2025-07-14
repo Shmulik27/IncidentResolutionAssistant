@@ -96,23 +96,7 @@ frontend/
 - **Axios** - HTTP client
 - **Create React App** - Build tool
 
-## Troubleshooting
 
-### CORS Issues
-If you encounter CORS errors, make sure your backend services are configured to allow requests from `http://localhost:3000`.
-
-### Service Connection Issues
-- Verify all backend services are running
-- Check service URLs in the Configuration page
-- Ensure no firewall is blocking the connections
-
-### Build Issues
-- Clear node_modules and reinstall: `rm -rf node_modules && npm install`
-- Clear npm cache: `npm cache clean --force` 
-
-Thank you for reporting this! If you’re not seeing any namespaces in the UI after selecting a cluster, here are the most likely causes and how to debug/fix them:
-
----
 
 ## 1. **Check the Backend Endpoint Directly**
 
