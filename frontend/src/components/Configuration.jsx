@@ -119,58 +119,60 @@ function Configuration() {
         </Alert>
       </Snackbar>
       <Divider sx={{ mb: 3 }} />
-      {FIELD_GROUPS.map(group => (
-        <Box key={group.label} sx={{ mb: 4 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>{group.label}</Typography>
-          <Grid container spacing={2}>
-            {group.fields.map(field => (
-              <Grid item xs={12} sm={6} md={4} key={field.key}>
-                {field.type === 'boolean' ? (
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={edit[field.key] !== undefined ? edit[field.key] : !!config[field.key]}
-                        onChange={e => handleSwitch(field.key, e.target.checked)}
-                        color="primary"
-                      />
-                    }
-                    label={field.label}
-                  />
-                ) : (
-                  <TextField
-                    fullWidth
-                    type={field.type === 'password' ? (showSecret[field.key] ? 'text' : 'password') : (field.type || 'text')}
-                    label={field.label}
-                    value={edit[field.key] !== undefined ? edit[field.key] : (config[field.key] === '****' ? '' : config[field.key] || '')}
-                    onChange={e => handleChange(field.key, e.target.value)}
-                    placeholder={field.placeholder || ''}
-                    helperText={field.helper}
-                    InputProps={field.type === 'password' ? {
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => handleShowSecret(field.key)} edge="end" size="small">
-                            {showSecret[field.key] ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      )
-                    } : undefined}
-                  />
-                )}
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      ))}
-      <Divider sx={{ my: 3 }} />
-      <Button
-        variant="contained"
-        color="primary"
-        sx={{ mt: 2, minWidth: 120 }}
-        onClick={handleSave}
-        disabled={saving || Object.keys(edit).length === 0}
-      >
-        {saving ? 'Saving...' : 'Save'}
-      </Button>
+      <form onSubmit={e => { e.preventDefault(); handleSave(); }}>
+        {FIELD_GROUPS.map(group => (
+          <Box key={group.label} sx={{ mb: 4 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>{group.label}</Typography>
+            <Grid container spacing={2}>
+              {group.fields.map(field => (
+                <Grid item xs={12} sm={6} md={4} key={field.key}>
+                  {field.type === 'boolean' ? (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={edit[field.key] !== undefined ? edit[field.key] : !!config[field.key]}
+                          onChange={e => handleSwitch(field.key, e.target.checked)}
+                          color="primary"
+                        />
+                      }
+                      label={field.label}
+                    />
+                  ) : (
+                    <TextField
+                      fullWidth
+                      type={field.type === 'password' ? (showSecret[field.key] ? 'text' : 'password') : (field.type || 'text')}
+                      label={field.label}
+                      value={edit[field.key] !== undefined ? edit[field.key] : (config[field.key] === '****' ? '' : config[field.key] || '')}
+                      onChange={e => handleChange(field.key, e.target.value)}
+                      placeholder={field.placeholder || ''}
+                      helperText={field.helper}
+                      InputProps={field.type === 'password' ? {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={() => handleShowSecret(field.key)} edge="end" size="small">
+                              {showSecret[field.key] ? <VisibilityOff /> : <Visibility />}
+                            </IconButton>
+                          </InputAdornment>
+                        )
+                      } : undefined}
+                    />
+                  )}
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        ))}
+        <Divider sx={{ my: 3 }} />
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ mt: 2, minWidth: 120 }}
+          type="submit"
+          disabled={saving || Object.keys(edit).length === 0}
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </Button>
+      </form>
     </Box>
   );
 }
