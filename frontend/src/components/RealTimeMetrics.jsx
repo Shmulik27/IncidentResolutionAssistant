@@ -49,6 +49,7 @@ const RealTimeMetrics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [live, setLive] = useState(false);
 
   // Mock real-time data
   const generateMockPerformanceData = () => {
@@ -112,10 +113,54 @@ const RealTimeMetrics = () => {
     }
   };
 
+  // SSE connection for real-time metrics
   useEffect(() => {
-    fetchRealTimeMetrics();
-    const interval = setInterval(fetchRealTimeMetrics, 5000); // Refresh every 5 seconds
-    return () => clearInterval(interval);
+    let eventSource;
+    let fallbackInterval;
+    setLoading(true);
+    setLive(false);
+    try {
+      eventSource = new window.EventSource('http://localhost:8080/metrics/stream');
+      eventSource.onopen = () => setLive(true);
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setMetrics((prev) => ({
+            ...prev,
+            system: data,
+            performance: [
+              ...prev.performance.slice(-11),
+              {
+                time: new Date().toLocaleTimeString(),
+                cpu: data.cpu,
+                memory: data.memory,
+                network: data.network,
+                disk: data.disk
+              }
+            ]
+          }));
+          setLastUpdated(new Date());
+          setLoading(false);
+        } catch (err) {
+          setError('Failed to parse real-time metrics');
+        }
+      };
+      eventSource.onerror = () => {
+        setLive(false);
+        eventSource.close();
+        // Fallback to polling
+        fallbackInterval = setInterval(fetchRealTimeMetrics, 5000);
+      };
+    } catch (err) {
+      setError('Failed to connect to real-time metrics');
+      // Fallback to polling
+      fallbackInterval = setInterval(fetchRealTimeMetrics, 5000);
+    }
+    return () => {
+      if (eventSource) eventSource.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
+    // eslint-disable-next-line
   }, []);
 
   const getMetricColor = (value, thresholds) => {
@@ -159,6 +204,7 @@ const RealTimeMetrics = () => {
             )}
           </Typography>
         </Box>
+        <Chip label={live ? 'Live' : 'Offline'} color={live ? 'success' : 'default'} size="small" sx={{ ml: 2 }} />
         <Button
           variant="contained"
           onClick={fetchRealTimeMetrics}

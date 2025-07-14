@@ -32,7 +32,6 @@ import {
   Brightness4,
   Brightness7
 } from '@mui/icons-material';
-import Dashboard from './components/Dashboard';
 import IncidentAnalyzer from './components/IncidentAnalyzer';
 import TestRunner from './components/TestRunner';
 import Configuration from './components/Configuration';
@@ -40,20 +39,13 @@ import K8sLogScanner from './components/K8sLogScanner';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import RealTimeMetrics from './components/RealTimeMetrics';
 import IncidentAnalytics from './components/IncidentAnalytics';
+import ApplicationMonitoring from './components/ApplicationMonitoring';
 
 const drawerWidth = 240;
 
 const menuItems = [
-  {
-    text: 'Dashboard',
-    icon: <DashboardIcon />,
-    path: '/',
-    children: [
-      { text: 'Analytics Dashboard', icon: <AnalyticsIcon />, path: '/dashboard/analytics' },
-      { text: 'Incident Analytics', icon: <AssessmentIcon />, path: '/dashboard/incident-analytics' },
-      { text: 'Real-Time Metrics', icon: <TimelineIcon />, path: '/dashboard/metrics' }
-    ]
-  },
+  { text: 'Application Monitoring', icon: <AnalyticsIcon />, path: '/monitoring' },
+  { text: 'Incident Dashboard', icon: <AssessmentIcon />, path: '/incident-dashboard' },
   { text: 'Incident Analyzer', icon: <BugReportIcon />, path: '/analyzer' },
   { text: 'K8s Log Scanner', icon: <StorageIcon />, path: '/k8s' },
   { text: 'Configuration', icon: <SettingsIcon />, path: '/config' }
@@ -91,10 +83,6 @@ function AppContent({ setMode, mode }) {
       if (match) {
         crumbs.push({ text: match.text, path: match.path });
       }
-    }
-    // Always add Dashboard for root
-    if (location.pathname === '/' || crumbs.length === 0) {
-      crumbs.unshift({ text: 'Dashboard', path: '/' });
     }
     return crumbs;
   };
@@ -251,10 +239,9 @@ function AppContent({ setMode, mode }) {
         }}
       >
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard/analytics" element={<AnalyticsDashboard />} />
-          <Route path="/dashboard/incident-analytics" element={<IncidentAnalytics />} />
-          <Route path="/dashboard/metrics" element={<RealTimeMetrics />} />
+          <Route path="/" element={<ApplicationMonitoring />} />
+          <Route path="/monitoring" element={<ApplicationMonitoring />} />
+          <Route path="/incident-dashboard" element={<IncidentAnalytics />} />
           <Route path="/analyzer" element={<IncidentAnalyzer />} />
           <Route path="/k8s" element={<K8sLogScanner />} />
           <Route path="/config" element={<Configuration />} />

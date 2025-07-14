@@ -6,10 +6,12 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -94,6 +96,43 @@ func isCodeRelated(rootCause string) bool {
 	return false
 }
 
+// SSE endpoint for real-time metrics
+// GET /metrics/stream
+// Streams a JSON object every second with example metrics
+func metricsStreamHandler(w http.ResponseWriter, r *http.Request) {
+	addCORSHeaders(w)
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+	// Example: stream a random metrics object every second
+	for {
+		metrics := map[string]interface{}{
+			"cpu":               rand.Float64()*30 + 40, // 40-70
+			"memory":            rand.Float64()*20 + 60, // 60-80
+			"disk":              rand.Float64()*15 + 35, // 35-50
+			"network":           rand.Float64()*40 + 30, // 30-70
+			"activeConnections": rand.Intn(1000) + 500,
+			"requestsPerSecond": rand.Intn(50) + 20,
+			"errorRate":         rand.Float64()*2 + 0.1,
+			"uptime":            99.8 + rand.Float64()*0.2,
+		}
+		b, _ := json.Marshal(metrics)
+		w.Write([]byte("data: "))
+		w.Write(b)
+		w.Write([]byte("\n\n"))
+		flusher.Flush()
+		time.Sleep(1 * time.Second)
+		if r.Context().Err() != nil {
+			return
+		}
+	}
+}
+
 func main() {
 	logAnalyzerURL = os.Getenv("LOG_ANALYZER_URL")
 	if logAnalyzerURL == "" {
@@ -127,6 +166,7 @@ func main() {
 	log.Printf("Using action recommender URL: %s", actionRecommenderURL)
 
 	http.Handle("/metrics", promhttp.Handler())
+	http.HandleFunc("/metrics/stream", metricsStreamHandler)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		addCORSHeaders(w)

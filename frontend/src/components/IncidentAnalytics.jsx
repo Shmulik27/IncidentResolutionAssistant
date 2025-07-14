@@ -64,6 +64,7 @@ const IncidentAnalytics = () => {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [timeRange, setTimeRange] = useState('30d');
+  const [live, setLive] = useState(false);
 
   // Mock incident data
   const mockIncidents = [
@@ -141,6 +142,49 @@ const IncidentAnalytics = () => {
     }
   };
 
+  // Real-time updates for metrics (demo: only update metrics, not incident list)
+  useEffect(() => {
+    let eventSource;
+    let fallbackInterval;
+    setLive(false);
+    try {
+      eventSource = new window.EventSource('http://localhost:8080/metrics/stream');
+      eventSource.onopen = () => setLive(true);
+      eventSource.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          setAnalytics((prev) => ({
+            ...prev,
+            // For demo, update only a few metrics
+            incidents: prev.incidents,
+            trends: prev.trends,
+            patterns: prev.patterns,
+            topIssues: prev.topIssues,
+            resolutionTimes: prev.resolutionTimes,
+            severityDistribution: prev.severityDistribution,
+            _realtime: data // store for metrics
+          }));
+          setLastUpdated(new Date());
+        } catch (err) {
+          setLive(false);
+        }
+      };
+      eventSource.onerror = () => {
+        setLive(false);
+        eventSource.close();
+        fallbackInterval = setInterval(fetchIncidentAnalytics, 5000);
+      };
+    } catch (err) {
+      setLive(false);
+      fallbackInterval = setInterval(fetchIncidentAnalytics, 5000);
+    }
+    return () => {
+      if (eventSource) eventSource.close();
+      if (fallbackInterval) clearInterval(fallbackInterval);
+    };
+    // eslint-disable-next-line
+  }, []);
+
   useEffect(() => {
     fetchIncidentAnalytics();
     const interval = setInterval(fetchIncidentAnalytics, 300000); // Refresh every 5 minutes
@@ -196,7 +240,8 @@ const IncidentAnalytics = () => {
             )}
           </Typography>
         </Box>
-        <Box display="flex" gap={2}>
+        <Box display="flex" gap={2} alignItems="center">
+          <Chip label={live ? 'Live' : 'Offline'} color={live ? 'success' : 'default'} size="small" />
           <FormControl size="small">
             <InputLabel>Time Range</InputLabel>
             <Select

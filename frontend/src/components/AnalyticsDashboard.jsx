@@ -13,7 +13,10 @@ import {
   CircularProgress,
   Button,
   IconButton,
-  Tooltip
+  Tooltip,
+  CardActionArea,
+  Modal,
+  Box as MuiBox
 } from '@mui/material';
 import {
   Refresh,
@@ -46,18 +49,79 @@ import {
 } from 'recharts';
 import { api } from '../services/api';
 
+// Widget detail modal
+function WidgetDetailModal({ open, onClose, widget, analytics }) {
+  return (
+    <Modal open={open} onClose={onClose}>
+      <MuiBox sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', bgcolor: 'background.paper', boxShadow: 24, p: 4, minWidth: 320, maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto' }}>
+        <Typography variant="h6" gutterBottom>{widget?.label || 'Details'}</Typography>
+        {widget?.detail
+          ? widget.detail(analytics)
+          : <Typography variant="body1">No additional details available for this widget.</Typography>}
+      </MuiBox>
+    </Modal>
+  );
+}
+
+const ANALYTICS_WIDGETS = [
+  {
+    id: 'avg-response',
+    label: 'Avg Response Time',
+    render: (analytics) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><Speed color="primary" sx={{ mr: 2 }} /><Box><Typography variant="h6">Avg Response Time</Typography><Typography variant="h4" color="primary">{Math.round(analytics.performanceData.reduce((sum, d) => sum + d.responseTime, 0) / analytics.performanceData.length)}ms</Typography></Box></Box></CardContent></Card>
+    ),
+    detail: (analytics) => (
+      <Box>
+        <Typography variant="body2">Average response time over the last 24 hours.</Typography>
+        <Typography variant="h4" color="primary" sx={{ mt: 2 }}>{Math.round(analytics.performanceData.reduce((sum, d) => sum + d.responseTime, 0) / analytics.performanceData.length)} ms</Typography>
+        {/* Add a response time trend chart here */}
+      </Box>
+    )
+  },
+  {
+    id: 'system-uptime',
+    label: 'System Uptime',
+    render: (analytics) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><TrendingUp color="success" sx={{ mr: 2 }} /><Box><Typography variant="h6">System Uptime</Typography><Typography variant="h4" color="success">{Math.min(...Object.values(analytics.serviceMetrics).map(m => m.uptime)).toFixed(1)}%</Typography></Box></Box></CardContent></Card>
+    ),
+    detail: (analytics) => (
+      <Box>
+        <Typography variant="body2">Minimum uptime across all services.</Typography>
+        <Typography variant="h4" color="success" sx={{ mt: 2 }}>{Math.min(...Object.values(analytics.serviceMetrics).map(m => m.uptime)).toFixed(1)}%</Typography>
+        {/* Add a service uptime breakdown here */}
+      </Box>
+    )
+  },
+  {
+    id: 'active-pods',
+    label: 'Active Pods',
+    render: (analytics) => (
+      <Card><CardContent><Box display="flex" alignItems="center"><NetworkCheck color="info" sx={{ mr: 2 }} /><Box><Typography variant="h6">Active Pods</Typography><Typography variant="h4" color="info">{analytics.k8sMetrics.runningPods}/{analytics.k8sMetrics.totalPods}</Typography></Box></Box></CardContent></Card>
+    ),
+    detail: (analytics) => (
+      <Box>
+        <Typography variant="body2">Number of running pods out of total pods in the cluster.</Typography>
+        <Typography variant="h4" color="info" sx={{ mt: 2 }}>{analytics.k8sMetrics.runningPods} / {analytics.k8sMetrics.totalPods}</Typography>
+        {/* Add a pod status breakdown here */}
+      </Box>
+    )
+  },
+];
+
 const AnalyticsDashboard = () => {
   const [analytics, setAnalytics] = useState({
     serviceMetrics: {},
     performanceData: [],
     incidentTrends: [],
     resourceUsage: {},
-    testResults: {},
-    k8sMetrics: {}
+    k8sMetrics: {},
+    testResults: { passed: 0, failed: 0, skipped: 0 } // Added for test results
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [selectedWidgetId, setSelectedWidgetId] = useState(null);
+  const selectedWidget = ANALYTICS_WIDGETS.find(w => w.id === selectedWidgetId);
 
   // Mock data for demonstration - in real app, this would come from backend
   const mockPerformanceData = [
@@ -100,14 +164,6 @@ const AnalyticsDashboard = () => {
     network: 82
   };
 
-  const mockTestResults = {
-    total: 156,
-    passed: 142,
-    failed: 8,
-    skipped: 6,
-    coverage: 87.5
-  };
-
   const mockK8sMetrics = {
     totalPods: 24,
     runningPods: 22,
@@ -126,8 +182,8 @@ const AnalyticsDashboard = () => {
         performanceData: mockPerformanceData,
         incidentTrends: mockIncidentTrends,
         resourceUsage: mockResourceUsage,
-        testResults: mockTestResults,
-        k8sMetrics: mockK8sMetrics
+        k8sMetrics: mockK8sMetrics,
+        testResults: { passed: 10, failed: 2, skipped: 1 } // Mock test results
       });
       setError(null);
       setLastUpdated(new Date());
@@ -197,70 +253,15 @@ const AnalyticsDashboard = () => {
       )}
 
       {/* Key Metrics Cards */}
+      <WidgetDetailModal open={!!selectedWidgetId} onClose={() => setSelectedWidgetId(null)} widget={selectedWidget} analytics={analytics} />
       <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Speed color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Avg Response Time</Typography>
-                  <Typography variant="h4" color="primary">
-                    {Math.round(analytics.performanceData.reduce((sum, d) => sum + d.responseTime, 0) / analytics.performanceData.length)}ms
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <TrendingUp color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">System Uptime</Typography>
-                  <Typography variant="h4" color="success">
-                    {Math.min(...Object.values(analytics.serviceMetrics).map(m => m.uptime)).toFixed(1)}%
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <BugReport color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Test Coverage</Typography>
-                  <Typography variant="h4" color="warning">
-                    {analytics.testResults.coverage}%
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <NetworkCheck color="info" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Active Pods</Typography>
-                  <Typography variant="h4" color="info">
-                    {analytics.k8sMetrics.runningPods}/{analytics.k8sMetrics.totalPods}
-                  </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+        {ANALYTICS_WIDGETS.map((widget, idx) => (
+          <Grid item xs={12} sm={6} md={3} key={widget.id}>
+            <CardActionArea onClick={() => setSelectedWidgetId(widget.id)}>
+              {widget.render(analytics)}
+            </CardActionArea>
+          </Grid>
+        ))}
       </Grid>
 
       {/* Charts Row 1 */}
@@ -374,9 +375,9 @@ const AnalyticsDashboard = () => {
                 <PieChart>
                   <Pie
                     data={[
-                      { name: 'Passed', value: analytics.testResults.passed, color: '#4caf50' },
-                      { name: 'Failed', value: analytics.testResults.failed, color: '#f44336' },
-                      { name: 'Skipped', value: analytics.testResults.skipped, color: '#ff9800' }
+                      { name: 'Passed', value: (analytics.testResults?.passed ?? 0), color: '#4caf50' },
+                      { name: 'Failed', value: (analytics.testResults?.failed ?? 0), color: '#f44336' },
+                      { name: 'Skipped', value: (analytics.testResults?.skipped ?? 0), color: '#ff9800' }
                     ]}
                     cx="50%"
                     cy="50%"
@@ -387,9 +388,9 @@ const AnalyticsDashboard = () => {
                     dataKey="value"
                   >
                     {[
-                      { name: 'Passed', value: analytics.testResults.passed, color: '#4caf50' },
-                      { name: 'Failed', value: analytics.testResults.failed, color: '#f44336' },
-                      { name: 'Skipped', value: analytics.testResults.skipped, color: '#ff9800' }
+                      { name: 'Passed', value: (analytics.testResults?.passed ?? 0), color: '#4caf50' },
+                      { name: 'Failed', value: (analytics.testResults?.failed ?? 0), color: '#f44336' },
+                      { name: 'Skipped', value: (analytics.testResults?.skipped ?? 0), color: '#ff9800' }
                     ].map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
