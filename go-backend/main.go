@@ -62,8 +62,19 @@ func init() {
 }
 
 // addCORSHeaders adds CORS headers to the response
-func addCORSHeaders(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+func addCORSHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	allowedOrigins := map[string]bool{
+		"http://localhost:3000": true,
+		"http://localhost:3001": true,
+		"http://localhost:3002": true,
+		"http://127.0.0.1:3000": true,
+		"http://127.0.0.1:3001": true,
+		"http://127.0.0.1:3002": true,
+	}
+	if allowedOrigins[origin] {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+	}
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -100,7 +111,7 @@ func isCodeRelated(rootCause string) bool {
 // GET /metrics/stream
 // Streams a JSON object every second with example metrics
 func metricsStreamHandler(w http.ResponseWriter, r *http.Request) {
-	addCORSHeaders(w)
+	addCORSHeaders(w, r)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -169,7 +180,7 @@ func main() {
 	http.HandleFunc("/metrics/stream", metricsStreamHandler)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -181,7 +192,7 @@ func main() {
 	})
 
 	http.HandleFunc("/analyze", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -217,7 +228,7 @@ func main() {
 	})
 
 	http.HandleFunc("/predict", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -253,7 +264,7 @@ func main() {
 	})
 
 	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -289,7 +300,7 @@ func main() {
 	})
 
 	http.HandleFunc("/recommend", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -346,7 +357,7 @@ func main() {
 
 	// Configuration endpoints
 	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -408,7 +419,7 @@ func main() {
 
 	// Test endpoint
 	http.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -437,7 +448,7 @@ func main() {
 
 	// K8s Log Scanner endpoint
 	http.HandleFunc("/scan-k8s-logs", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -474,7 +485,7 @@ func main() {
 
 	// K8s Clusters endpoint
 	http.HandleFunc("/k8s-clusters", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
@@ -502,7 +513,7 @@ func main() {
 
 	// K8s Namespaces endpoint
 	http.HandleFunc("/k8s-namespaces", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w)
+		addCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return

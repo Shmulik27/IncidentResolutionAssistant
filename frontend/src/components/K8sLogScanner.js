@@ -32,13 +32,13 @@ const K8sLogScanner = () => {
     }
   };
 
-  const handleClusterChange = async (clusterName) => {
-    setSelectedCluster(clusterName);
+  const handleClusterChange = async (clusterArn) => {
+    setSelectedCluster(clusterArn);
     setSelectedNamespaces(['default']);
     setNamespaces([]);
-    if (clusterName) {
+    if (clusterArn) {
       try {
-        const nsResp = await api.getK8sNamespaces(clusterName);
+        const nsResp = await api.getK8sNamespaces(clusterArn);
         setNamespaces(nsResp.namespaces || []);
       } catch (err) {
         setError('Failed to load namespaces: ' + err.message);
@@ -156,7 +156,7 @@ const K8sLogScanner = () => {
             >
               <option value="">Select a cluster...</option>
               {clusters.filter(cluster => cluster.name !== '*').map(cluster => (
-                <option key={cluster.name} value={cluster.name}>
+                <option key={cluster.cluster} value={cluster.cluster}>
                   {cluster.name} ({cluster.cluster})
                 </option>
               ))}

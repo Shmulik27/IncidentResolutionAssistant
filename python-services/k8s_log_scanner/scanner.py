@@ -272,6 +272,10 @@ def scan_logs(request: LogScanRequest):
         logger.error(f"Error in log scan: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+def extract_cluster_name(arn):
+    # arn:aws:eks:region:account:cluster/CLUSTER_NAME
+    return arn.split('/')[-1]
+
 @app.get("/clusters")
 def list_clusters():
     """List available clusters from kubeconfig"""
@@ -294,10 +298,12 @@ def list_clusters():
             if line.strip():
                 parts = line.split()
                 if len(parts) >= 3:
+                    arn = parts[1] # This is the cluster ARN
+                    name = extract_cluster_name(arn)
                     clusters.append({
-                        'name': parts[0],
-                        'cluster': parts[1],
-                        'user': parts[2]
+                        "name": name,
+                        "cluster": arn,
+                        "user": arn  # or whatever is appropriate
                     })
         
         return {"clusters": clusters}
