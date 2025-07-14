@@ -364,43 +364,7 @@ const AnalyticsDashboard = () => {
             </CardContent>
           </Card>
         </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Test Results
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'Passed', value: (analytics.testResults?.passed ?? 0), color: '#4caf50' },
-                      { name: 'Failed', value: (analytics.testResults?.failed ?? 0), color: '#f44336' },
-                      { name: 'Skipped', value: (analytics.testResults?.skipped ?? 0), color: '#ff9800' }
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {[
-                      { name: 'Passed', value: (analytics.testResults?.passed ?? 0), color: '#4caf50' },
-                      { name: 'Failed', value: (analytics.testResults?.failed ?? 0), color: '#f44336' },
-                      { name: 'Skipped', value: (analytics.testResults?.skipped ?? 0), color: '#ff9800' }
-                    ].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+        {/* Removed Test Results PieChart section */}
       </Grid>
 
       {/* Service Metrics Table */}
