@@ -24,8 +24,9 @@ const K8sLogScanner = () => {
 
   const loadClusters = async () => {
     try {
-      const response = await api.getK8sClusters();
-      setClusters(response.clusters || []);
+      const response = await fetch('http://localhost:8006/clusters');
+      const data = await response.json();
+      setClusters(data.clusters || []);
     } catch (error) {
       setError('Failed to load clusters: ' + error.message);
     }
