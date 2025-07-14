@@ -1,307 +1,178 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Button,
-  Alert,
-  CircularProgress,
-  Grid,
-  Divider,
-  Switch,
-  FormControlLabel
+  Box, Typography, TextField, Button, Table, TableBody, TableCell, TableContainer, TableRow, Paper, Grid, Switch, FormControlLabel, Snackbar, Alert, Divider, IconButton, InputAdornment
 } from '@mui/material';
-import { Save, Refresh } from '@mui/icons-material';
-import { api } from '../services/api';
+import { Visibility, VisibilityOff } from '@mui/icons-material';
 
-const Configuration = () => {
+const FIELD_GROUPS = [
+  {
+    label: 'Service URLs',
+    fields: [
+      { key: 'log_analyzer_url', label: 'Log Analyzer URL', placeholder: 'http://localhost:8001', helper: 'URL for the Log Analyzer service.' },
+      { key: 'root_cause_predictor_url', label: 'Root Cause Predictor URL', placeholder: 'http://localhost:8002', helper: 'URL for the Root Cause Predictor service.' },
+      { key: 'knowledge_base_url', label: 'Knowledge Base URL', placeholder: 'http://localhost:8003', helper: 'URL for the Knowledge Base service.' },
+      { key: 'action_recommender_url', label: 'Action Recommender URL', placeholder: 'http://localhost:8004', helper: 'URL for the Action Recommender service.' },
+      { key: 'incident_integrator_url', label: 'Incident Integrator URL', placeholder: 'http://localhost:8005', helper: 'URL for the Incident Integrator service.' },
+    ]
+  },
+  {
+    label: 'Integrations',
+    fields: [
+      { key: 'GITHUB_REPO', label: 'GitHub Repo', placeholder: 'owner/repo', helper: 'GitHub repository for incident tracking.' },
+      { key: 'GITHUB_TOKEN', label: 'GitHub Token', type: 'password', helper: 'Personal access token for GitHub API.' },
+      { key: 'JIRA_SERVER', label: 'Jira Server', placeholder: 'https://your-domain.atlassian.net', helper: 'Jira server URL.' },
+      { key: 'JIRA_USER', label: 'Jira User', placeholder: 'user@example.com', helper: 'Jira username/email.' },
+      { key: 'JIRA_TOKEN', label: 'Jira Token', type: 'password', helper: 'Jira API token.' },
+      { key: 'JIRA_PROJECT', label: 'Jira Project Key', placeholder: 'PROJ', helper: 'Jira project key.' },
+      { key: 'WEBHOOK_SECRET', label: 'Webhook Secret', type: 'password', helper: 'Secret for securing webhooks.' },
+      { key: 'SLACK_WEBHOOK_URL', label: 'Slack Webhook URL', type: 'password', helper: 'Slack Incoming Webhook URL.' },
+    ]
+  },
+  {
+    label: 'Feature Flags',
+    fields: [
+      { key: 'enable_auto_analysis', label: 'Enable Auto Analysis', type: 'boolean', helper: 'Automatically analyze incidents.' },
+      { key: 'enable_jira_integration', label: 'Enable Jira Integration', type: 'boolean', helper: 'Enable Jira issue creation and updates.' },
+      { key: 'enable_github_integration', label: 'Enable GitHub Integration', type: 'boolean', helper: 'Enable GitHub PR/issue integration.' },
+      { key: 'enable_notifications', label: 'Enable Notifications', type: 'boolean', helper: 'Enable in-app and Slack notifications.' },
+    ]
+  },
+  {
+    label: 'Advanced',
+    fields: [
+      { key: 'request_timeout', label: 'Request Timeout (seconds)', type: 'number', helper: 'Timeout for backend requests.' },
+      { key: 'max_retries', label: 'Max Retries', type: 'number', helper: 'Maximum number of retries for failed requests.' },
+      { key: 'log_level', label: 'Log Level', type: 'text', placeholder: 'INFO', helper: 'Logging level (DEBUG, INFO, WARNING, ERROR).' },
+      { key: 'cache_ttl', label: 'Cache TTL (minutes)', type: 'number', helper: 'Cache time-to-live for backend data.' },
+    ]
+  }
+];
+
+function Configuration() {
   const [config, setConfig] = useState({});
+  const [edit, setEdit] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
+  const [success, setSuccess] = useState(false);
+  const [showSecret, setShowSecret] = useState({});
 
   useEffect(() => {
-    loadConfiguration();
+    setLoading(true);
+    fetch('/config')
+      .then(res => res.json())
+      .then(data => {
+        setConfig(data);
+        setEdit({});
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load configuration');
+        setLoading(false);
+      });
   }, []);
 
-  const loadConfiguration = async () => {
-    setLoading(true);
-    try {
-      const configData = await api.getConfiguration();
-      setConfig(configData);
-      setError(null);
-    } catch (err) {
-      setError('Failed to load configuration');
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (key, value) => {
+    setEdit(prev => ({ ...prev, [key]: value }));
+    setSuccess(false);
   };
 
-  const saveConfiguration = async () => {
+  const handleSwitch = (key, value) => {
+    setEdit(prev => ({ ...prev, [key]: value }));
+    setSuccess(false);
+  };
+
+  const handleSave = () => {
     setSaving(true);
     setError(null);
-    setSuccess(null);
-
-    try {
-      await api.updateConfiguration(config);
-      setSuccess('Configuration saved successfully');
-    } catch (err) {
-      setError(err.message || 'Failed to save configuration');
-    } finally {
-      setSaving(false);
-    }
+    fetch('/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(edit),
+    })
+      .then(res => res.json())
+      .then(data => {
+        setConfig(data.config);
+        setEdit({});
+        setSuccess(true);
+        setSaving(false);
+      })
+      .catch(() => {
+        setError('Failed to save configuration');
+        setSaving(false);
+      });
   };
 
-  const handleConfigChange = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      [key]: value
-    }));
+  const handleShowSecret = (key) => {
+    setShowSecret(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleBooleanChange = (key, value) => {
-    setConfig(prev => ({
-      ...prev,
-      [key]: value
-    }));
-  };
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
+  if (loading) return <Typography>Loading configuration...</Typography>;
 
   return (
-    <Box p={3}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">
-          Configuration
-        </Typography>
-        <Box>
-          <Button
-            variant="outlined"
-            onClick={loadConfiguration}
-            startIcon={<Refresh />}
-            sx={{ mr: 1 }}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
-            onClick={saveConfiguration}
-            disabled={saving}
-            startIcon={saving ? <CircularProgress size={20} /> : <Save />}
-          >
-            {saving ? 'Saving...' : 'Save Configuration'}
-          </Button>
-        </Box>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 }, maxWidth: 900, mx: 'auto' }}>
+      <Typography variant="h4" gutterBottom>Configuration</Typography>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      <Snackbar open={success} autoHideDuration={4000} onClose={() => setSuccess(false)} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={() => setSuccess(false)} severity="success" sx={{ width: '100%' }}>
+          Configuration saved!
         </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Service Configuration
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <TextField
-                fullWidth
-                label="Log Analyzer URL"
-                value={config.log_analyzer_url || ''}
-                onChange={(e) => handleConfigChange('log_analyzer_url', e.target.value)}
-                sx={{ mb: 2 }}
-                placeholder="http://localhost:8001"
-              />
-              
-              <TextField
-                fullWidth
-                label="Root Cause Predictor URL"
-                value={config.root_cause_predictor_url || ''}
-                onChange={(e) => handleConfigChange('root_cause_predictor_url', e.target.value)}
-                sx={{ mb: 2 }}
-                placeholder="http://localhost:8002"
-              />
-              
-              <TextField
-                fullWidth
-                label="Knowledge Base URL"
-                value={config.knowledge_base_url || ''}
-                onChange={(e) => handleConfigChange('knowledge_base_url', e.target.value)}
-                sx={{ mb: 2 }}
-                placeholder="http://localhost:8003"
-              />
-              
-              <TextField
-                fullWidth
-                label="Action Recommender URL"
-                value={config.action_recommender_url || ''}
-                onChange={(e) => handleConfigChange('action_recommender_url', e.target.value)}
-                sx={{ mb: 2 }}
-                placeholder="http://localhost:8004"
-              />
-              
-              <TextField
-                fullWidth
-                label="Incident Integrator URL"
-                value={config.incident_integrator_url || ''}
-                onChange={(e) => handleConfigChange('incident_integrator_url', e.target.value)}
-                sx={{ mb: 2 }}
-                placeholder="http://localhost:8005"
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Feature Flags
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={config.enable_auto_analysis || false}
-                    onChange={(e) => handleBooleanChange('enable_auto_analysis', e.target.checked)}
+      </Snackbar>
+      <Divider sx={{ mb: 3 }} />
+      {FIELD_GROUPS.map(group => (
+        <Box key={group.label} sx={{ mb: 4 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>{group.label}</Typography>
+          <Grid container spacing={2}>
+            {group.fields.map(field => (
+              <Grid item xs={12} sm={6} md={4} key={field.key}>
+                {field.type === 'boolean' ? (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={edit[field.key] !== undefined ? edit[field.key] : !!config[field.key]}
+                        onChange={e => handleSwitch(field.key, e.target.checked)}
+                        color="primary"
+                      />
+                    }
+                    label={field.label}
                   />
-                }
-                label="Enable Auto Analysis"
-                sx={{ mb: 2 }}
-              />
-              
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={config.enable_jira_integration || false}
-                    onChange={(e) => handleBooleanChange('enable_jira_integration', e.target.checked)}
-                  />
-                }
-                label="Enable Jira Integration"
-                sx={{ mb: 2 }}
-              />
-              
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={config.enable_github_integration || false}
-                    onChange={(e) => handleBooleanChange('enable_github_integration', e.target.checked)}
-                  />
-                }
-                label="Enable GitHub Integration"
-                sx={{ mb: 2 }}
-              />
-              
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={config.enable_notifications || false}
-                    onChange={(e) => handleBooleanChange('enable_notifications', e.target.checked)}
-                  />
-                }
-                label="Enable Notifications"
-                sx={{ mb: 2 }}
-              />
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Advanced Settings
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+                ) : (
                   <TextField
                     fullWidth
-                    label="Request Timeout (seconds)"
-                    type="number"
-                    value={config.request_timeout || 30}
-                    onChange={(e) => handleConfigChange('request_timeout', parseInt(e.target.value))}
-                    sx={{ mb: 2 }}
+                    type={field.type === 'password' ? (showSecret[field.key] ? 'text' : 'password') : (field.type || 'text')}
+                    label={field.label}
+                    value={edit[field.key] !== undefined ? edit[field.key] : (config[field.key] === '****' ? '' : config[field.key] || '')}
+                    onChange={e => handleChange(field.key, e.target.value)}
+                    placeholder={field.placeholder || ''}
+                    helperText={field.helper}
+                    InputProps={field.type === 'password' ? {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={() => handleShowSecret(field.key)} edge="end" size="small">
+                            {showSecret[field.key] ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      )
+                    } : undefined}
                   />
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Max Retries"
-                    type="number"
-                    value={config.max_retries || 3}
-                    onChange={(e) => handleConfigChange('max_retries', parseInt(e.target.value))}
-                    sx={{ mb: 2 }}
-                  />
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Log Level"
-                    value={config.log_level || 'INFO'}
-                    onChange={(e) => handleConfigChange('log_level', e.target.value)}
-                    sx={{ mb: 2 }}
-                    select
-                    SelectProps={{
-                      native: true,
-                    }}
-                  >
-                    <option value="DEBUG">DEBUG</option>
-                    <option value="INFO">INFO</option>
-                    <option value="WARNING">WARNING</option>
-                    <option value="ERROR">ERROR</option>
-                  </TextField>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Cache TTL (minutes)"
-                    type="number"
-                    value={config.cache_ttl || 60}
-                    onChange={(e) => handleConfigChange('cache_ttl', parseInt(e.target.value))}
-                    sx={{ mb: 2 }}
-                  />
-                </Grid>
+                )}
               </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {config.error && (
-          <Grid item xs={12}>
-            <Alert severity="warning">
-              Configuration endpoint not available. This is a read-only view.
-            </Alert>
+            ))}
           </Grid>
-        )}
-      </Grid>
+        </Box>
+      ))}
+      <Divider sx={{ my: 3 }} />
+      <Button
+        variant="contained"
+        color="primary"
+        sx={{ mt: 2, minWidth: 120 }}
+        onClick={handleSave}
+        disabled={saving || Object.keys(edit).length === 0}
+      >
+        {saving ? 'Saving...' : 'Save'}
+      </Button>
     </Box>
   );
-};
+}
 
 export default Configuration; 

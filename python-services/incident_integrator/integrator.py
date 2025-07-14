@@ -1,16 +1,55 @@
+import json
 import os
 import hmac
 import hashlib
 import logging
-from fastapi import FastAPI, HTTPException, Request, Header
+from fastapi import FastAPI, HTTPException, Request, Header, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from github import Github
 from jira import JIRA
 from dotenv import load_dotenv
-from utils import get_code_owner, get_codeowner_from_file
+from incident_integrator.utils import get_code_owner, get_codeowner_from_file
+import requests
 
 load_dotenv()
+
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+DEFAULT_CONFIG = {
+    "GITHUB_TOKEN": "",
+    "GITHUB_REPO": "",
+    "JIRA_SERVER": "",
+    "JIRA_USER": "",
+    "JIRA_TOKEN": "",
+    "JIRA_PROJECT": "",
+    "WEBHOOK_SECRET": "",
+    "SLACK_WEBHOOK_URL": "",
+    # Add your service URLs and feature flags here:
+    "log_analyzer_url": "",
+    "root_cause_predictor_url": "",
+    "knowledge_base_url": "",
+    "action_recommender_url": "",
+    "incident_integrator_url": "",
+    "enable_auto_analysis": True,
+    "enable_jira_integration": True,
+    "enable_github_integration": True,
+    "enable_notifications": True,
+    "request_timeout": 30,
+    "max_retries": 3,
+    "log_level": "INFO",
+    "cache_ttl": 60
+}
+
+def load_config():
+    if not os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, "w") as f:
+            json.dump(DEFAULT_CONFIG, f, indent=2)
+    with open(CONFIG_PATH) as f:
+        return json.load(f)
+
+def save_config(config):
+    with open(CONFIG_PATH, "w") as f:
+        json.dump(config, f, indent=2)
 
 app = FastAPI(
     title="Incident Integrator Service",
@@ -35,12 +74,32 @@ JIRA_USER = os.getenv("JIRA_USER")
 JIRA_TOKEN = os.getenv("JIRA_TOKEN")
 JIRA_PROJECT = os.getenv("JIRA_PROJECT")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 
 logging.basicConfig(level=logging.INFO)
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/config")
+def get_config():
+    config = load_config()
+    # Mask secrets in GET
+    masked = {}
+    for k, v in config.items():
+        if any(s in k for s in ["TOKEN", "SECRET", "WEBHOOK"]):
+            masked[k] = "****" if v else ""
+        else:
+            masked[k] = v
+    return masked
+
+@app.post("/config")
+def update_config(new_config: dict = Body(...)):
+    config = load_config()
+    config.update(new_config)
+    save_config(config)
+    return {"status": "ok", "config": config}
 
 class IncidentEvent(BaseModel):
     error_summary: str
@@ -55,6 +114,18 @@ def find_existing_jira(summary):
     if issues and isinstance(issues, list):
         return issues[0]
     return None
+
+def send_slack_notification(message):
+    SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+    if not SLACK_WEBHOOK_URL:
+        logging.warning("SLACK_WEBHOOK_URL not set, skipping Slack notification.")
+        return
+    try:
+        resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message})
+        if resp.status_code != 200:
+            logging.error(f"Slack notification failed: {resp.text}")
+    except Exception as e:
+        logging.error(f"Slack notification error: {e}")
 
 @app.post("/incident")
 def handle_incident(event: IncidentEvent):
@@ -87,6 +158,8 @@ def handle_incident(event: IncidentEvent):
         logging.warning(f"Could not assign Jira to {developer}: {e}")
 
     logging.info(f"Created Jira {issue.key} for {developer}")
+    # Send Slack notification for new incident
+    send_slack_notification(f":rotating_light: New Incident Created: {event.error_summary}\nAssigned to: {developer}\nJira: {issue.key}")
     return {"jira_issue": issue.key, "assigned_to": developer}
 
 def verify_signature(request: Request, secret: str, signature: str):
@@ -116,6 +189,8 @@ async def github_webhook(request: Request, x_hub_signature_256: str = Header(Non
             try:
                 jira.transition_issue(ticket, "Done")  # Use correct transition name/id
                 logging.info(f"Closed Jira {ticket} due to PR merge")
+                # Send Slack notification for incident resolved
+                send_slack_notification(f":white_check_mark: Incident Resolved: {ticket}\nClosed by PR: {pr['html_url']}")
             except Exception as e:
                 logging.error(f"Failed to close Jira ticket {ticket}: {e}")
     return {"status": "ok"}

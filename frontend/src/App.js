@@ -40,6 +40,9 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import RealTimeMetrics from './components/RealTimeMetrics';
 import IncidentAnalytics from './components/IncidentAnalytics';
 import ApplicationMonitoring from './components/ApplicationMonitoring';
+import ErrorBoundary from './components/ErrorBoundary';
+import Snackbar from '@mui/material/Snackbar';
+import MuiAlert from '@mui/material/Alert';
 
 const drawerWidth = 240;
 
@@ -51,12 +54,17 @@ const menuItems = [
   { text: 'Configuration', icon: <SettingsIcon />, path: '/config' }
 ];
 
+const NotificationContext = React.createContext({ notify: () => {} });
+
 function AppContent({ setMode, mode }) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [expandedMenus, setExpandedMenus] = React.useState({});
   const location = useLocation();
+  const [notification, setNotification] = React.useState({ open: false, message: '', severity: 'info' });
+  const notify = (message, severity = 'info') => setNotification({ open: true, message, severity });
+  const handleClose = () => setNotification(n => ({ ...n, open: false }));
 
   // Helper to flatten menuItems for lookup
   const flattenMenu = (items, parent = null) => {
@@ -147,107 +155,116 @@ function AppContent({ setMode, mode }) {
   );
 
   return (
-    <Box sx={{ display: 'flex' }}>
-      <AppBar
-        position="fixed"
-        sx={{
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          ml: { md: `${drawerWidth}px` },
-        }}
-      >
-        <Toolbar sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 1 }}>
-          <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton
-                color="inherit"
-                aria-label="open drawer"
-                edge="start"
-                onClick={handleDrawerToggle}
-                sx={{ mr: 2, display: { md: 'none' } }}
-              >
-                <MenuIcon />
-              </IconButton>
-              <Typography variant="h6" noWrap component="div">
-                AI-Powered Incident Resolution Assistant
-              </Typography>
-            </Box>
-            <IconButton sx={{ ml: 1 }} color="inherit" onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
-              {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-            </IconButton>
+    <NotificationContext.Provider value={{ notify }}>
+      <ErrorBoundary>
+        <Box sx={{ display: 'flex' }}>
+          <AppBar
+            position="fixed"
+            sx={{
+              width: { md: `calc(100% - ${drawerWidth}px)` },
+              ml: { md: `${drawerWidth}px` },
+            }}
+          >
+            <Toolbar sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 1 }}>
+              <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <IconButton
+                    color="inherit"
+                    aria-label="open drawer"
+                    edge="start"
+                    onClick={handleDrawerToggle}
+                    sx={{ mr: 2, display: { md: 'none' } }}
+                  >
+                    <MenuIcon />
+                  </IconButton>
+                  <Typography variant="h6" noWrap component="div">
+                    AI-Powered Incident Resolution Assistant
+                  </Typography>
+                </Box>
+                <IconButton sx={{ ml: 1 }} color="inherit" onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
+                  {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                </IconButton>
+              </Box>
+              <Breadcrumbs aria-label="breadcrumb" sx={{ mt: 1 }}>
+                {breadcrumbs.map((crumb, idx) => (
+                  idx < breadcrumbs.length - 1 ? (
+                    <MuiLink
+                      key={crumb.path}
+                      component={RouterLink}
+                      to={crumb.path}
+                      underline="hover"
+                      color="inherit"
+                    >
+                      {crumb.text}
+                    </MuiLink>
+                  ) : (
+                    <Typography key={crumb.path} color="text.primary">
+                      {crumb.text}
+                    </Typography>
+                  )
+                ))}
+              </Breadcrumbs>
+            </Toolbar>
+          </AppBar>
+
+          <Box
+            component="nav"
+            sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+          >
+            {/* Mobile drawer */}
+            <Drawer
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{
+                keepMounted: true, // Better open performance on mobile.
+              }}
+              sx={{
+                display: { xs: 'block', md: 'none' },
+                '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+              }}
+            >
+              {drawer}
+            </Drawer>
+            {/* Desktop drawer */}
+            <Drawer
+              variant="permanent"
+              sx={{
+                display: { xs: 'none', md: 'block' },
+                '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+              }}
+              open
+            >
+              {drawer}
+            </Drawer>
           </Box>
-          <Breadcrumbs aria-label="breadcrumb" sx={{ mt: 1 }}>
-            {breadcrumbs.map((crumb, idx) => (
-              idx < breadcrumbs.length - 1 ? (
-                <MuiLink
-                  key={crumb.path}
-                  component={RouterLink}
-                  to={crumb.path}
-                  underline="hover"
-                  color="inherit"
-                >
-                  {crumb.text}
-                </MuiLink>
-              ) : (
-                <Typography key={crumb.path} color="text.primary">
-                  {crumb.text}
-                </Typography>
-              )
-            ))}
-          </Breadcrumbs>
-        </Toolbar>
-      </AppBar>
 
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-      >
-        {/* Mobile drawer */}
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true, // Better open performance on mobile.
-          }}
-          sx={{
-            display: { xs: 'block', md: 'none' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-        >
-          {drawer}
-        </Drawer>
-        {/* Desktop drawer */}
-        <Drawer
-          variant="permanent"
-          sx={{
-            display: { xs: 'none', md: 'block' },
-            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-          }}
-          open
-        >
-          {drawer}
-        </Drawer>
-      </Box>
-
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { md: `calc(100% - ${drawerWidth}px)` },
-          mt: 8
-        }}
-      >
-        <Routes>
-          <Route path="/" element={<ApplicationMonitoring />} />
-          <Route path="/monitoring" element={<ApplicationMonitoring />} />
-          <Route path="/incident-dashboard" element={<IncidentAnalytics />} />
-          <Route path="/analyzer" element={<IncidentAnalyzer />} />
-          <Route path="/k8s" element={<K8sLogScanner />} />
-          <Route path="/config" element={<Configuration />} />
-        </Routes>
-      </Box>
-    </Box>
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              p: 3,
+              width: { md: `calc(100% - ${drawerWidth}px)` },
+              mt: 8
+            }}
+          >
+            <Routes>
+              <Route path="/" element={<ApplicationMonitoring />} />
+              <Route path="/monitoring" element={<ApplicationMonitoring />} />
+              <Route path="/incident-dashboard" element={<IncidentAnalytics />} />
+              <Route path="/analyzer" element={<IncidentAnalyzer />} />
+              <Route path="/k8s" element={<K8sLogScanner />} />
+              <Route path="/config" element={<Configuration />} />
+            </Routes>
+          </Box>
+        </Box>
+        <Snackbar open={notification.open} autoHideDuration={6000} onClose={handleClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+          <MuiAlert onClose={handleClose} severity={notification.severity} sx={{ width: '100%' }} elevation={6} variant="filled">
+            {notification.message}
+          </MuiAlert>
+        </Snackbar>
+      </ErrorBoundary>
+    </NotificationContext.Provider>
   );
 }
 
@@ -259,4 +276,5 @@ function App({ setMode, mode }) {
   );
 }
 
+export { NotificationContext };
 export default App; 

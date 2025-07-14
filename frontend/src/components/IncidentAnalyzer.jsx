@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   Box,
   TextField,
@@ -18,6 +18,7 @@ import {
 } from '@mui/material';
 import { ExpandMore, PlayArrow, CheckCircle } from '@mui/icons-material';
 import { api } from '../services/api';
+import { NotificationContext } from '../App';
 
 const steps = ['Log Analysis', 'Root Cause Prediction', 'Knowledge Search', 'Action Recommendations'];
 
@@ -28,10 +29,12 @@ const IncidentAnalyzer = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [stepResults, setStepResults] = useState({});
+  const { notify } = useContext(NotificationContext);
 
   const handleAnalyze = async () => {
     if (!logs.trim()) {
       setError('Please enter log lines');
+      notify('Please enter log lines', 'warning');
       return;
     }
 
@@ -70,8 +73,10 @@ const IncidentAnalyzer = () => {
       setResults(prev => ({ ...prev, recommendations: recommendationsResult }));
 
       setActiveStep(4);
+      notify('Incident analysis completed successfully!', 'success');
     } catch (err) {
       setError(err.message || 'Analysis failed');
+      notify(err.message || 'Analysis failed', 'error');
     } finally {
       setLoading(false);
     }

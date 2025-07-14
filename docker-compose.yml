@@ -43,7 +43,7 @@
          context: ./python-services
          dockerfile: incident_integrator/Dockerfile
        ports:
-         - "8005:8000"
+         - "8005:8005"
        env_file:
          - python-services/incident_integrator/.env
 
