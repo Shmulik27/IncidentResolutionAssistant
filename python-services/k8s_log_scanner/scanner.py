@@ -11,6 +11,7 @@ import os
 from datetime import datetime, timedelta
 import subprocess
 import json
+import requests
 
 app = FastAPI(
     title="Kubernetes Log Scanner Service",
@@ -67,6 +68,21 @@ class LogScanResponse(BaseModel):
     pods_scanned: List[str]
     scan_time: str
     errors: List[str] = []
+
+class IncidentAnalysisResults(BaseModel):
+    analysis: Optional[dict] = None
+    prediction: Optional[dict] = None
+    search: Optional[list] = None
+    recommendations: Optional[dict] = None
+
+class LogScanAndAnalysisResponse(LogScanResponse):
+    incident_analysis: Optional[IncidentAnalysisResults] = None
+
+# Service URLs (env or default)
+LOG_ANALYZER_URL = os.getenv("LOG_ANALYZER_URL", "http://log-analyzer:8000/analyze")
+ROOT_CAUSE_PREDICTOR_URL = os.getenv("ROOT_CAUSE_PREDICTOR_URL", "http://root-cause-predictor:8000/predict")
+KNOWLEDGE_BASE_URL = os.getenv("KNOWLEDGE_BASE_URL", "http://knowledge-base:8000/search")
+ACTION_RECOMMENDER_URL = os.getenv("ACTION_RECOMMENDER_URL", "http://action-recommender:8000/recommend")
 
 @app.get("/metrics")
 def metrics():
@@ -194,29 +210,21 @@ def filter_logs_by_pattern(logs: List[str], patterns: Optional[List[str]]) -> Li
     
     return filtered_logs
 
-@app.post("/scan-logs", response_model=LogScanResponse)
+@app.post("/scan-logs", response_model=LogScanAndAnalysisResponse)
 def scan_logs(request: LogScanRequest):
     REQUESTS_TOTAL.labels(endpoint="/scan-logs").inc()
-    
     try:
         logger.info(f"Starting log scan for cluster: {request.cluster_config.name}")
-        
-        # Setup kubeconfig
         kubeconfig_path = setup_kubeconfig(request.cluster_config)
-        
-        # Get pods in specified namespaces
         pods = get_pods_in_namespaces(
-            kubeconfig_path, 
-            request.namespaces, 
+            kubeconfig_path,
+            request.namespaces,
             request.pod_labels,
             request.cluster_config.context
         )
-        
         all_logs = []
         pods_scanned = []
         errors = []
-        
-        # Get logs from each pod
         for pod in pods:
             try:
                 pod_logs = get_pod_logs(
@@ -227,46 +235,59 @@ def scan_logs(request: LogScanRequest):
                     request.max_lines_per_pod,
                     request.cluster_config.context
                 )
-                
-                # Filter logs by level
                 pod_logs = filter_logs_by_level(pod_logs, request.log_levels)
-                
-                # Filter logs by pattern
                 pod_logs = filter_logs_by_pattern(pod_logs, request.search_patterns)
-                
                 if pod_logs:
                     all_logs.extend(pod_logs)
                     pods_scanned.append(f"{pod['namespace']}/{pod['name']}")
-                    
-                    # Update metrics
                     LOGS_SCANNED_TOTAL.labels(
                         cluster=request.cluster_config.name,
                         namespace=pod['namespace']
                     ).inc(len(pod_logs))
-                    
             except Exception as e:
                 error_msg = f"Failed to scan pod {pod['name']}: {str(e)}"
                 errors.append(error_msg)
                 logger.error(error_msg)
-        
-        # Cleanup temporary kubeconfig
         if request.cluster_config.kubeconfig:
             try:
                 os.unlink(kubeconfig_path)
             except:
                 pass
-        
         logger.info(f"Log scan completed. Found {len(all_logs)} log lines from {len(pods_scanned)} pods")
-        
-        return LogScanResponse(
+        incident_analysis = None
+        if all_logs:
+            try:
+                # Step 1: Log Analysis
+                analysis_resp = requests.post(LOG_ANALYZER_URL, json={"logs": all_logs}, timeout=30)
+                analysis = analysis_resp.json() if analysis_resp.ok else {"error": analysis_resp.text}
+                # Step 2: Root Cause Prediction
+                prediction_resp = requests.post(ROOT_CAUSE_PREDICTOR_URL, json={"logs": all_logs}, timeout=30)
+                prediction = prediction_resp.json() if prediction_resp.ok else {"error": prediction_resp.text}
+                # Step 3: Knowledge Search
+                search_query = prediction.get("root_cause") or prediction.get("prediction") or "error"
+                search_resp = requests.post(KNOWLEDGE_BASE_URL, json={"query": search_query, "top_k": 5}, timeout=30)
+                search = search_resp.json() if search_resp.ok else [{"error": search_resp.text}]
+                # Step 4: Action Recommendations
+                recommendations_resp = requests.post(ACTION_RECOMMENDER_URL, json={"root_cause": search_query}, timeout=30)
+                recommendations = recommendations_resp.json() if recommendations_resp.ok else {"error": recommendations_resp.text}
+                incident_analysis = IncidentAnalysisResults(
+                    analysis=analysis,
+                    prediction=prediction,
+                    search=search,
+                    recommendations=recommendations
+                )
+            except Exception as e:
+                logger.error(f"Error in incident analysis flow: {e}")
+                errors.append(f"Incident analysis error: {str(e)}")
+        return LogScanAndAnalysisResponse(
             cluster_name=request.cluster_config.name,
             total_logs=len(all_logs),
             logs=all_logs,
             pods_scanned=pods_scanned,
             scan_time=datetime.now().isoformat(),
-            errors=errors
+            errors=errors,
+            incident_analysis=incident_analysis
         )
-        
     except Exception as e:
         ERRORS_TOTAL.labels(endpoint="/scan-logs").inc()
         logger.error(f"Error in log scan: {e}")

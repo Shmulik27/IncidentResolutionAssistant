@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { api } from '../services/api';
 import './K8sLogScanner.css';
+import { NotificationContext } from '../App';
 
 const K8sLogScanner = () => {
   const [clusters, setClusters] = useState([]);
@@ -17,6 +18,7 @@ const K8sLogScanner = () => {
   const [scanning, setScanning] = useState(false);
   const [scanResults, setScanResults] = useState(null);
   const [error, setError] = useState('');
+  const { notify } = useContext(NotificationContext);
 
   useEffect(() => {
     loadClusters();
@@ -127,6 +129,9 @@ const K8sLogScanner = () => {
 
       const results = await api.scanK8sLogs(scanRequest);
       setScanResults(results);
+      if (results.incident_analysis) {
+        notify('Incident analysis completed successfully!', 'success');
+      }
     } catch (error) {
       setError('Failed to scan logs: ' + error.message);
     } finally {
@@ -311,6 +316,29 @@ const K8sLogScanner = () => {
                     {log}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Incident Analysis Results from backend */}
+          {scanResults.incident_analysis && (
+            <div style={{ marginTop: 32 }}>
+              <h3>Incident Analysis</h3>
+              <div>
+                <strong>Log Analysis:</strong>
+                <pre>{JSON.stringify(scanResults.incident_analysis.analysis, null, 2)}</pre>
+              </div>
+              <div>
+                <strong>Root Cause Prediction:</strong>
+                <pre>{JSON.stringify(scanResults.incident_analysis.prediction, null, 2)}</pre>
+              </div>
+              <div>
+                <strong>Knowledge Search:</strong>
+                <pre>{JSON.stringify(scanResults.incident_analysis.search, null, 2)}</pre>
+              </div>
+              <div>
+                <strong>Action Recommendations:</strong>
+                <pre>{JSON.stringify(scanResults.incident_analysis.recommendations, null, 2)}</pre>
               </div>
             </div>
           )}
