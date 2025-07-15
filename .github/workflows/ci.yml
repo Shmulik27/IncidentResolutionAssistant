@@ -27,7 +27,7 @@ jobs:
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: v1.54.2
+          version: v1.57.2
           working-directory: backend/go-backend
 
       - name: Test
@@ -82,7 +82,7 @@ jobs:
       - name: Lint
         run: |
           cd backend/python-services/${{ matrix.service }}
-          ruff app
+          ruff check .
 
       - name: Test
         run: |
