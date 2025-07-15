@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,7 +15,9 @@ func TestAnalyzeEndpoint(t *testing.T) {
 	// Mock Python log analyzer service
 	mockAnalyzer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"anomalies": ["error line"], "count": 1, "details": {"keyword": ["error line"], "frequency": [], "entity": []}}`)
+		if _, err := io.WriteString(w, `{"anomalies": ["error line"], "count": 1, "details": {"keyword": ["error line"], "frequency": [], "entity": []}}`); err != nil {
+			log.Printf("failed to write string: %v", err)
+		}
 	}))
 	defer mockAnalyzer.Close()
 
@@ -43,7 +46,9 @@ func TestAnalyzeEndpoint(t *testing.T) {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			t.Fatalf("failed to copy response body: %v", err)
+		}
 	})
 
 	ts := httptest.NewServer(h)
@@ -60,7 +65,9 @@ func TestAnalyzeEndpoint(t *testing.T) {
 		t.Fatalf("Expected 200, got %d", resp.StatusCode)
 	}
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result["count"].(float64) != 1 {
 		t.Errorf("Expected count 1, got %v", result["count"])
 	}
@@ -89,7 +96,9 @@ func TestAnalyzeEndpoint_PythonServiceDown(t *testing.T) {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			t.Fatalf("failed to copy response body: %v", err)
+		}
 	})
 
 	ts := httptest.NewServer(h)
@@ -148,7 +157,9 @@ func TestPredictEndpoint(t *testing.T) {
 	// Mock Python root cause predictor service
 	mockPredictor := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"root_cause": "Memory exhaustion"}`)
+		if _, err := io.WriteString(w, `{"root_cause": "Memory exhaustion"}`); err != nil {
+			log.Printf("failed to write string: %v", err)
+		}
 	}))
 	defer mockPredictor.Close()
 
@@ -177,7 +188,9 @@ func TestPredictEndpoint(t *testing.T) {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			t.Fatalf("failed to copy response body: %v", err)
+		}
 	})
 
 	ts := httptest.NewServer(h)
@@ -194,7 +207,9 @@ func TestPredictEndpoint(t *testing.T) {
 		t.Fatalf("Expected 200, got %d", resp.StatusCode)
 	}
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
 	if result["root_cause"].(string) != "Memory exhaustion" {
 		t.Errorf("Expected root_cause 'Memory exhaustion', got %v", result["root_cause"])
 	}

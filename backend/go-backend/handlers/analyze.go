@@ -3,6 +3,7 @@ package handlers
 import (
 	"backend/go-backend/models"
 	"encoding/json"
+	"log"
 	"net/http"
 )
 
@@ -13,6 +14,7 @@ func HandleAnalyze(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// TODO: Call business logic and write response
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"result": "ok"}`))
+	if _, err := w.Write([]byte(`{"result": "ok"}`)); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }

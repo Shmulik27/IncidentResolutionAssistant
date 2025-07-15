@@ -136,9 +136,15 @@ func metricsStreamHandler(w http.ResponseWriter, r *http.Request) {
 			"uptime":            99.8 + rand.Float64()*0.2,
 		}
 		b, _ := json.Marshal(metrics)
-		w.Write([]byte("data: "))
-		w.Write(b)
-		w.Write([]byte("\n\n"))
+		if _, err := w.Write([]byte("data: ")); err != nil {
+			log.Printf("failed to write SSE data: %v", err)
+		}
+		if _, err := w.Write(b); err != nil {
+			log.Printf("failed to write SSE data: %v", err)
+		}
+		if _, err := w.Write([]byte("\n\n")); err != nil {
+			log.Printf("failed to write SSE data: %v", err)
+		}
 		flusher.Flush()
 		time.Sleep(1 * time.Second)
 		if r.Context().Err() != nil {
@@ -233,7 +239,9 @@ func main() {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("failed to copy response body: %v", err)
+		}
 	})
 
 	http.HandleFunc("/search", func(w http.ResponseWriter, r *http.Request) {
@@ -269,7 +277,9 @@ func main() {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("failed to copy response body: %v", err)
+		}
 	})
 
 	http.HandleFunc("/recommend", func(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +315,9 @@ func main() {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("failed to copy response body: %v", err)
+		}
 
 		// After the end-to-end flow, trigger the Incident Integrator if code-related
 		if isCodeRelated(req.RootCause) {
@@ -355,7 +367,9 @@ func main() {
 				"log_level":                 "INFO",
 				"cache_ttl":                 60,
 			}
-			json.NewEncoder(w).Encode(config)
+			if err := json.NewEncoder(w).Encode(config); err != nil {
+				log.Printf("failed to encode config: %v", err)
+			}
 		} else if r.Method == "POST" {
 			// Update configuration
 			var newConfig map[string]interface{}
@@ -384,7 +398,9 @@ func main() {
 			}
 
 			log.Printf("Configuration updated")
-			json.NewEncoder(w).Encode(map[string]string{"status": "Configuration updated successfully"})
+			if err := json.NewEncoder(w).Encode(map[string]string{"status": "Configuration updated successfully"}); err != nil {
+				log.Printf("failed to encode status: %v", err)
+			}
 		} else {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -416,7 +432,9 @@ func main() {
 				"incident_integrator":  "UP",
 			},
 		}
-		json.NewEncoder(w).Encode(result)
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			log.Printf("failed to encode result: %v", err)
+		}
 	})
 
 	// K8s Log Scanner endpoint
@@ -453,7 +471,9 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("failed to copy response body: %v", err)
+		}
 	})
 
 	// K8s Clusters endpoint
@@ -481,7 +501,9 @@ func main() {
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("failed to copy response body: %v", err)
+		}
 	})
 
 	// K8s Namespaces endpoint
@@ -511,7 +533,9 @@ func main() {
 		defer resp.Body.Close()
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		if _, err := io.Copy(w, resp.Body); err != nil {
+			log.Printf("failed to copy response body: %v", err)
+		}
 	})
 
 	log.Println("Go backend listening on :8080")
