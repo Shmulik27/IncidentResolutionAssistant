@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/go-backend/models"
 	"encoding/json"
 	"io"
 	"log"
@@ -28,7 +29,7 @@ func TestAnalyzeEndpoint(t *testing.T) {
 
 	// Start Go server with patched handler
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req LogRequest
+		var req models.LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
@@ -78,7 +79,7 @@ func TestAnalyzeEndpoint_PythonServiceDown(t *testing.T) {
 	defer os.Unsetenv("LOG_ANALYZER_URL")
 
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req LogRequest
+		var req models.LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
@@ -118,7 +119,7 @@ func TestAnalyzeEndpoint_PythonServiceDown(t *testing.T) {
 func TestAnalyzeEndpoint_InvalidInput(t *testing.T) {
 	// Valid handler, but send malformed JSON
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req LogRequest
+		var req models.LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
@@ -170,7 +171,7 @@ func TestPredictEndpoint(t *testing.T) {
 
 	// Start Go server with patched handler
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var req LogRequest
+		var req models.LogRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "Invalid request", http.StatusBadRequest)
 			return
