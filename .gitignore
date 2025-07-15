@@ -35,4 +35,7 @@ __pycache__/
 *.pyd
 
 # Docker
-**/.docker/ 
+**/.docker/ __pycache__/
+.pytest_cache/
+*.pyc
+
