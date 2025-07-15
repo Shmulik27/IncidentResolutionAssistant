@@ -19,6 +19,11 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Clean Go build cache
+        run: |
+          cd backend/go-backend
+          go clean -cache -modcache -testcache -x
+
       - name: Lint
         uses: golangci/golangci-lint-action@v3
         with:
