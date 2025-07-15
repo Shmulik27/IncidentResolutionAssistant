@@ -175,16 +175,30 @@ const K8sLogScanner = () => {
         <div className="config-section">
           <h3>Namespace Selection</h3>
           <div className="namespace-list">
-            {namespaces.map(namespace => (
-              <label key={namespace} className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={selectedNamespaces.includes(namespace)}
-                  onChange={() => handleNamespaceToggle(namespace)}
-                />
-                {namespace}
-              </label>
-            ))}
+            {selectedCluster === '' ? (
+              <div className="namespace-placeholder" style={{ color: '#888', fontStyle: 'italic', padding: '8px 0' }}>
+                Select a cluster to view namespaces.
+              </div>
+            ) : namespaces.length === 0 ? (
+              <div className="namespace-placeholder" style={{ color: '#888', fontStyle: 'italic', padding: '8px 0' }}>
+                {error && error.toLowerCase().includes('namespace') || error.toLowerCase().includes('connect') || error.toLowerCase().includes('load') ? (
+                  <>Could not connect to the cluster or fetch namespaces. Please check your cluster connectivity and try again.</>
+                ) : (
+                  <>No namespaces found for this cluster,verify your logging to k8s cluster is enabled.</>
+                )}
+              </div>
+            ) : (
+              namespaces.map(namespace => (
+                <label key={namespace} className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={selectedNamespaces.includes(namespace)}
+                    onChange={() => handleNamespaceToggle(namespace)}
+                  />
+                  {namespace}
+                </label>
+              ))
+            )}
           </div>
         </div>
 
