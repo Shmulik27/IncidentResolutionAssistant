@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+spacy
+faiss-cpu
+sentence-transformers
+scikit-learn
+prometheus_client
+PyGithub
+jira
+requests
+python-dotenv 
