@@ -1,4 +1,4 @@
-module go-backend
+module backend/go-backend
 
 go 1.22
 

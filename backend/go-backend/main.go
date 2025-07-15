@@ -15,6 +15,9 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"backend/go-backend/handlers"
+	"backend/go-backend/utils"
 )
 
 type LogRequest struct {
@@ -180,51 +183,21 @@ func main() {
 	http.HandleFunc("/metrics/stream", metricsStreamHandler)
 
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w, r)
+		utils.AddCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		requestsTotal.WithLabelValues("/health").Inc()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status": "ok"}`))
+		handlers.HandleHealth(w, r)
 	})
 
 	http.HandleFunc("/analyze", func(w http.ResponseWriter, r *http.Request) {
-		addCORSHeaders(w, r)
+		utils.AddCORSHeaders(w, r)
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		requestsTotal.WithLabelValues("/analyze").Inc()
-		var req LogRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			errorsTotal.WithLabelValues("/analyze").Inc()
-			log.Printf("Invalid request: %v", err)
-			http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		if req.Logs == nil {
-			errorsTotal.WithLabelValues("/analyze").Inc()
-			log.Printf("Missing 'logs' field in request")
-			http.Error(w, "Missing 'logs' field", http.StatusBadRequest)
-			return
-		}
-		log.Printf("Received /analyze request with %d log lines", len(req.Logs))
-
-		body, _ := json.Marshal(req)
-		resp, err := http.Post(logAnalyzerURL, "application/json", bytes.NewBuffer(body))
-		if err != nil {
-			errorsTotal.WithLabelValues("/analyze").Inc()
-			log.Printf("Failed to contact log analyzer: %v", err)
-			http.Error(w, "Failed to contact log analyzer: "+err.Error(), http.StatusInternalServerError)
-			return
-		}
-		defer resp.Body.Close()
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(resp.StatusCode)
-		io.Copy(w, resp.Body)
+		handlers.HandleAnalyze(w, r)
 	})
 
 	http.HandleFunc("/predict", func(w http.ResponseWriter, r *http.Request) {
@@ -542,5 +515,5 @@ func main() {
 	})
 
 	log.Println("Go backend listening on :8080")
-	http.ListenAndServe(":8080", nil)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
