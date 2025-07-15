@@ -40,8 +40,8 @@
 
      incident-integrator:
        build:
-         context: ./backend/python-services
-         dockerfile: incident_integrator/Dockerfile
+         context: ./backend/python-services/incident_integrator
+         dockerfile: Dockerfile
        ports:
          - "8005:8005"
        env_file:
