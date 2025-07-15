@@ -1,6 +1,8 @@
-import pytest
+
 from fastapi.testclient import TestClient
-from predictor import app, predict_root_cause, PredictRequest
+from app.api import app
+from app.logic import predict_root_cause
+from app.models import PredictRequest
 
 client = TestClient(app)
 
