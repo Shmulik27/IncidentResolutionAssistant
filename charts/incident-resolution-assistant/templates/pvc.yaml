@@ -1,0 +1,26 @@
+{{- if .Values.persistence.enabled }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: go-backend-pvc
+spec:
+  accessModes:
+    - {{ .Values.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size }}
+{{- range $name, $svc := .Values.pythonServices }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ $name }}-pvc
+spec:
+  accessModes:
+    - {{ $.Values.persistence.accessMode }}
+  resources:
+    requests:
+      storage: {{ $.Values.persistence.size }}
+{{- end }}
+{{- end }} 

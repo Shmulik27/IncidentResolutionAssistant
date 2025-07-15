@@ -1,0 +1,75 @@
+goBackend:
+  image:
+    repository: yourdockerhubuser/go-backend
+    tag: "latest"
+  replicaCount: 1
+  env: {}
+  resources: {}
+
+pythonServices:
+  logAnalyzer:
+    image:
+      repository: yourdockerhubuser/log_analyzer
+      tag: "latest"
+    replicaCount: 1
+    env: {}
+    resources: {}
+  actionRecommender:
+    image:
+      repository: yourdockerhubuser/action_recommender
+      tag: "latest"
+    replicaCount: 1
+    env: {}
+    resources: {}
+  knowledgeBase:
+    image:
+      repository: yourdockerhubuser/knowledge_base
+      tag: "latest"
+    replicaCount: 1
+    env: {}
+    resources: {}
+  rootCausePredictor:
+    image:
+      repository: yourdockerhubuser/root_cause_predictor
+      tag: "latest"
+    replicaCount: 1
+    env: {}
+    resources: {}
+  incidentIntegrator:
+    image:
+      repository: yourdockerhubuser/incident_integrator
+      tag: "latest"
+    replicaCount: 1
+    env: {}
+    resources: {}
+  k8sLogScanner:
+    image:
+      repository: yourdockerhubuser/k8s_log_scanner
+      tag: "latest"
+    replicaCount: 1
+    env: {}
+    resources: {}
+
+config:
+  enabled: true
+  data: {}
+
+secret:
+  enabled: true
+  data: {}
+
+persistence:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 1Gi
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  hosts:
+    - host: your-app.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: [] 
