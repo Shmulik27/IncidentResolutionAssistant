@@ -73,6 +73,12 @@ jobs:
         run: |
           pip install ruff pytest
 
+      - name: Install dependencies
+        run: |
+          if [ -f backend/python-services/${{ matrix.service }}/requirements.txt ]; then
+            python -m pip install -r backend/python-services/${{ matrix.service }}/requirements.txt
+          fi
+
       - name: Lint
         run: |
           cd backend/python-services/${{ matrix.service }}
