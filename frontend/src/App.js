@@ -47,7 +47,7 @@ import MuiAlert from '@mui/material/Alert';
 const drawerWidth = 240;
 
 const menuItems = [
-  { text: 'Application Monitoring', icon: <AnalyticsIcon />, path: '/monitoring' },
+  { text: 'Application Monitoring', icon: <TimelineIcon />, path: '/monitoring' },
   { text: 'Incident Dashboard', icon: <AssessmentIcon />, path: '/incident-dashboard' },
   { text: 'Incident Analyzer', icon: <BugReportIcon />, path: '/analyzer' },
   { text: 'K8s Log Scanner', icon: <StorageIcon />, path: '/k8s' },
