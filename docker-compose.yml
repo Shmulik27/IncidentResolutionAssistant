@@ -1,7 +1,7 @@
    version: '3.8'
    services:
      go-backend:
-       build: ./go-backend
+       build: ./backend/go-backend
        ports:
          - "8080:8080"
        depends_on:
@@ -12,44 +12,44 @@
 
      log-analyzer:
        build:
-         context: ./python-services
+         context: ./backend/python-services
          dockerfile: log_analyzer/Dockerfile
        ports:
          - "8001:8000"
 
      root-cause-predictor:
        build:
-         context: ./python-services
+         context: ./backend/python-services
          dockerfile: root_cause_predictor/Dockerfile
        ports:
          - "8002:8000"
 
      knowledge-base:
        build:
-         context: ./python-services
+         context: ./backend/python-services
          dockerfile: knowledge_base/Dockerfile
        ports:
          - "8003:8000"
 
      action-recommender:
        build:
-         context: ./python-services
+         context: ./backend/python-services
          dockerfile: action_recommender/Dockerfile
        ports:
          - "8004:8000"
 
      incident-integrator:
        build:
-         context: ./python-services
+         context: ./backend/python-services
          dockerfile: incident_integrator/Dockerfile
        ports:
          - "8005:8005"
        env_file:
-         - python-services/incident_integrator/.env
+         - backend/python-services/incident_integrator/.env
 
      k8s-log-scanner:
        build:
-         context: ./python-services
+         context: ./backend/python-services
          dockerfile: k8s_log_scanner/Dockerfile
        ports:
          - "8006:8000"

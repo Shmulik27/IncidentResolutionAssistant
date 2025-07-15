@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import MagicMock
-from ..utils import get_code_owner, get_codeowner_from_file
+from app.utils import get_code_owner, get_codeowner_from_file
 
 class TestUtils(unittest.TestCase):
     def test_get_code_owner(self):

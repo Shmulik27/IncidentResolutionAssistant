@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-PyGithub
-jira
-requests
-python-dotenv
-pytest 

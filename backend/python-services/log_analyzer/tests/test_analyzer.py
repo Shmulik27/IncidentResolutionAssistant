@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + '/..'))
 
 import pytest
 from fastapi.testclient import TestClient
-from analyzer import app, analyze_logs, LogRequest
+from app.api import app, analyze_logs, LogRequest
 
 client = TestClient(app)
 

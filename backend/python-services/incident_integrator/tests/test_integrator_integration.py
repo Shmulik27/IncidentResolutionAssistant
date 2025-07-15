@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-from ..integrator import app
+from app.api import app
 from github import Github
 from jira import JIRA
 
@@ -9,8 +9,8 @@ class TestIntegratorIntegration(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
 
-    @patch("incident_integrator.integrator.Github")
-    @patch("incident_integrator.integrator.JIRA")
+    @patch("app.api.Github")
+    @patch("app.api.JIRA")
     def test_incident_endpoint(self, mock_jira, mock_github):
         mock_repo = MagicMock()
         mock_github.return_value.get_repo.return_value = mock_repo
