@@ -1,0 +1,97 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  go-backend:
+    name: Go Backend CI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Install golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+
+      - name: Lint
+        run: |
+          cd backend/go-backend
+          golangci-lint run ./...
+
+      - name: Test
+        run: |
+          cd backend/go-backend
+          go test ./...
+
+      - name: Build Docker image
+        run: |
+          cd backend/go-backend
+          docker build -t yourdockerhubuser/go-backend:${{ github.sha }} .
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker image
+        run: |
+          docker push yourdockerhubuser/go-backend:${{ github.sha }}
+
+  python-services:
+    name: Python Services CI
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - log_analyzer
+          - action_recommender
+          - knowledge_base
+          - root_cause_predictor
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install ruff and pytest
+        run: |
+          pip install ruff pytest
+
+      - name: Lint
+        run: |
+          cd backend/python-services/${{ matrix.service }}
+          ruff app
+
+      - name: Test
+        run: |
+          cd backend/python-services/${{ matrix.service }}
+          pytest
+
+      - name: Build Docker image
+        run: |
+          cd backend/python-services/${{ matrix.service }}
+          docker build -t yourdockerhubuser/${{ matrix.service }}:${{ github.sha }} .
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Docker image
+        run: |
+          docker push yourdockerhubuser/${{ matrix.service }}:${{ github.sha }} 
