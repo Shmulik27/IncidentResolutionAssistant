@@ -33,6 +33,8 @@ func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		Namespace string   `json:"namespace"`
 		LogLevels []string `json:"log_levels"`
 		Interval  int      `json:"interval"` // seconds
+		Pods      []string `json:"pods"`
+		Cluster   string   `json:"cluster"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -46,11 +48,13 @@ func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		ID:        uuid.New().String(),
 		UserID:    userID,
 		Name:      req.Name,
+		Cluster:   req.Cluster,
 		Namespace: req.Namespace,
 		LogLevels: req.LogLevels,
-		Interval:  time.Duration(req.Interval) * time.Second,
+		Interval:  req.Interval, // store as int seconds
+		Pods:      req.Pods,
 		CreatedAt: time.Now(),
-		LastRun:   time.Time{},
+		LastRun:   time.Now().Add(-time.Duration(req.Interval) * time.Second), // run immediately
 	}
 	if err := utils.AddJob(userID, job); err != nil {
 		http.Error(w, "Failed to add job", http.StatusInternalServerError)
@@ -90,6 +94,61 @@ func HandleDeleteLogScanJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// PUT /api/log-scan-jobs/{id}
+func HandleUpdateLogScanJob(w http.ResponseWriter, r *http.Request) {
+	userID, ok := getUserID(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	parts := strings.Split(r.URL.Path, "/")
+	if len(parts) < 4 {
+		http.Error(w, "Missing job ID", http.StatusBadRequest)
+		return
+	}
+	jobID := parts[3]
+	var req struct {
+		Name          string   `json:"name"`
+		Namespace     string   `json:"namespace"`
+		LogLevels     []string `json:"log_levels"`
+		Interval      int      `json:"interval"`
+		Microservices []string `json:"microservices"`
+		Pods          []string `json:"pods"`
+		Cluster       string   `json:"cluster"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+	if req.Namespace == "" || req.Interval <= 0 {
+		http.Error(w, "Missing namespace or invalid interval", http.StatusBadRequest)
+		return
+	}
+	jobs := utils.GetJobs(userID)
+	updated := false
+	for i, job := range jobs {
+		if job.ID == jobID {
+			jobs[i].Name = req.Name
+			jobs[i].Namespace = req.Namespace
+			jobs[i].LogLevels = req.LogLevels
+			jobs[i].Interval = req.Interval // store as int seconds
+			jobs[i].Microservices = req.Microservices
+			jobs[i].Pods = req.Pods
+			jobs[i].Cluster = req.Cluster
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		http.Error(w, "Job not found", http.StatusNotFound)
+		return
+	}
+	utils.SetJobs(userID, jobs) // update in memory
+	go utils.SaveJobs()         // persist async
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(jobs)
 }
 
 // GET /api/incidents/recent

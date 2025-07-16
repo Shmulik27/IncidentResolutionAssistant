@@ -38,7 +38,7 @@ func TestFullLogScanPipelineIntegration(t *testing.T) {
 		Name:      "Pipeline Job",
 		Namespace: "default",
 		LogLevels: []string{"ERROR"},
-		Interval:  1 * time.Second,
+		Interval:  1,
 		CreatedAt: time.Now(),
 	}
 	_ = utils.AddJob(userID, job)
@@ -64,5 +64,42 @@ func TestFullLogScanPipelineIntegration(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &incidents)
 	if len(incidents) == 0 || incidents[0]["log_line"] != "ERROR pipeline test log" {
 		t.Fatalf("Pipeline incident not found or incorrect: %+v", incidents)
+	}
+}
+
+func TestJobRunsImmediatelyAfterCreation(t *testing.T) {
+	utils.JobsFile = "test_jobs_data_immediate.json"
+	defer os.Remove(utils.JobsFile)
+
+	userID := "immediateuser"
+	job := models.Job{
+		ID:        "job-immediate",
+		UserID:    userID,
+		Name:      "Immediate Job",
+		Namespace: "default",
+		LogLevels: []string{"ERROR"},
+		Interval:  1,
+		CreatedAt: time.Now(),
+	}
+	_ = utils.AddJob(userID, job)
+
+	// Patch RunLogScanJob to do nothing
+	orig := utils.RunLogScanJob
+	utils.RunLogScanJob = func(userID string, job models.Job) ([]models.Incident, error) { return nil, nil }
+	defer func() { utils.RunLogScanJob = orig }()
+
+	go utils.StartScheduler()
+	time.Sleep(1500 * time.Millisecond)
+	utils.StopScheduler()
+
+	jobs := utils.GetJobs(userID)
+	if len(jobs) == 0 {
+		t.Fatalf("No jobs found for user")
+	}
+	if jobs[0].LastRun.IsZero() {
+		t.Fatalf("LastRun was not updated after scheduler ran: %+v", jobs[0])
+	}
+	if time.Since(jobs[0].LastRun) > 5*time.Second {
+		t.Fatalf("LastRun is too old: %v", jobs[0].LastRun)
 	}
 }

@@ -51,4 +51,27 @@ describe('K8sLogScanner scheduled jobs', () => {
     await waitFor(() => expect(api.deleteLogScanJob).toHaveBeenCalled());
     expect(mockNotify).toHaveBeenCalledWith('Job deleted', 'success');
   });
+
+  it('shows Last Run updated after job creation', async () => {
+    // Initial job with no lastRun
+    api.listLogScanJobs.mockResolvedValueOnce([
+      { id: 'job2', name: 'Immediate Job', namespace: 'default', logLevels: ['ERROR'], interval: 300, createdAt: new Date().toISOString(), lastRun: null }
+    ]);
+    renderWithContext(<K8sLogScanner />);
+    expect(await screen.findByText('Immediate Job')).toBeInTheDocument();
+    expect(screen.getByText(/Last Run: Never/)).toBeInTheDocument();
+
+    // Simulate backend updating lastRun after job runs
+    const now = new Date().toISOString();
+    api.listLogScanJobs.mockResolvedValueOnce([
+      { id: 'job2', name: 'Immediate Job', namespace: 'default', logLevels: ['ERROR'], interval: 300, createdAt: new Date().toISOString(), lastRun: now }
+    ]);
+
+    // Simulate UI refresh (e.g., user clicks refresh or auto-refresh)
+    // Call fetchJobs directly or re-render
+    fireEvent.click(screen.getByText('Scheduled Log Scan Jobs'));
+    // Wait for UI to update
+    await waitFor(() => expect(screen.queryByText(/Last Run: Never/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Last Run:/)).not.toHaveTextContent('Never');
+  });
 }); 

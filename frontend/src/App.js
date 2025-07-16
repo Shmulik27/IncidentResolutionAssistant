@@ -58,8 +58,8 @@ const auth = getAuth(firebaseApp);
 const drawerWidth = 240;
 
 const menuItems = [
-  { text: 'Application Monitoring', icon: <TimelineIcon />, path: '/monitoring' },
   { text: 'Incident Dashboard', icon: <AssessmentIcon />, path: '/incident-dashboard' },
+  { text: 'Application Monitoring', icon: <TimelineIcon />, path: '/monitoring' },
   { text: 'Incident Analyzer', icon: <BugReportIcon />, path: '/analyzer' },
   { text: 'K8s Log Scanner', icon: <StorageIcon />, path: '/k8s' },
   { text: 'Configuration', icon: <SettingsIcon />, path: '/config' }

@@ -39,7 +39,7 @@ func TestSchedulerRunsJobsAtInterval(t *testing.T) {
 		Name:      "Test Job",
 		Namespace: "default",
 		LogLevels: []string{"ERROR"},
-		Interval:  1 * time.Second,
+		Interval:  1,
 		CreatedAt: time.Now(),
 	}
 	_ = utils.AddJob(userID, job)
@@ -75,7 +75,7 @@ func TestSchedulerConcurrencyLimit(t *testing.T) {
 			Name:      "JobC",
 			Namespace: "default",
 			LogLevels: []string{"ERROR"},
-			Interval:  1 * time.Second,
+			Interval:  1,
 			CreatedAt: time.Now(),
 		})
 	}

@@ -9,6 +9,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import EditIcon from '@mui/icons-material/Edit';
 
 const LOG_LEVEL_COLORS = {
   ERROR: '#ffcccc',
@@ -128,12 +129,20 @@ const K8sLogScanner = () => {
   const [jobs, setJobs] = useState([]);
   const [jobLoading, setJobLoading] = useState(false);
   const [jobError, setJobError] = useState('');
+  // 1. Add microservice options
+  // 2. Add edit state
+  const [editingJobId, setEditingJobId] = useState(null);
+  // 3. Update jobForm initial state to include microservices
   const [jobForm, setJobForm] = useState({
     name: '',
     namespace: 'default',
     logLevels: ['ERROR', 'WARN', 'CRITICAL'],
-    interval: 300 // seconds
+    interval: 300, // seconds
+    pods: [],
   });
+
+  // Add pod selection state
+  const [availablePods, setAvailablePods] = useState([]);
 
   useEffect(() => {
     fetchJobs();
@@ -148,6 +157,18 @@ const K8sLogScanner = () => {
       loadClusters();
     }
   }, [showJobForm]);
+
+  // Fetch pods when cluster/namespace changes in job form
+  useEffect(() => {
+    if (selectedCluster && selectedNamespaces.length === 1) {
+      const ns = selectedNamespaces[0];
+      api.getK8sPods(selectedCluster, ns).then(pods => {
+        setAvailablePods(pods);
+        // If creating a new job, default to all pods selected
+        setJobForm(prev => ({ ...prev, pods: pods }));
+      }).catch(() => setAvailablePods([]));
+    }
+  }, [selectedCluster, selectedNamespaces, showJobForm]);
 
   const loadClusters = async () => {
     try {
@@ -174,12 +195,9 @@ const K8sLogScanner = () => {
     }
   };
 
+  // Update handleNamespaceToggle to enforce single-select
   const handleNamespaceToggle = (namespace) => {
-    setSelectedNamespaces(prev => 
-      prev.includes(namespace)
-        ? prev.filter(ns => ns !== namespace)
-        : [...prev, namespace]
-    );
+    setSelectedNamespaces([namespace]);
   };
 
   const handleLogLevelToggle = (level) => {
@@ -300,10 +318,12 @@ const K8sLogScanner = () => {
         name: jobForm.name,
         namespace: jobForm.namespace,
         log_levels: jobForm.logLevels,
-        interval: parseInt(jobForm.interval, 10)
+        interval: parseInt(jobForm.interval, 10) * 60,
+        pods: jobForm.pods,
+        cluster: selectedCluster,
       };
       await api.createLogScanJob(job);
-      setJobForm({ name: '', namespace: 'default', logLevels: ['ERROR', 'WARN', 'CRITICAL'], interval: 300 });
+      setJobForm({ name: '', namespace: 'default', logLevels: ['ERROR', 'WARN', 'CRITICAL'], interval: 300, pods: [] });
       fetchJobs();
       notify('Scheduled log scan job created!', 'success');
     } catch (err) {
@@ -351,6 +371,30 @@ const K8sLogScanner = () => {
             <Typography variant="h6" gutterBottom>Create New Log Scan Job</Typography>
             <Divider sx={{ mb: 2 }} />
             <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Job Name"
+                  name="name"
+                  value={jobForm.name}
+                  onChange={handleJobFormChange}
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  label="Interval (minutes)"
+                  name="interval"
+                  type="number"
+                  value={jobForm.interval / 60}
+                  onChange={e => setJobForm(prev => ({ ...prev, interval: (parseInt(e.target.value, 10) || 5) * 60 }))}
+                  inputProps={{ min: 1, max: 1440 }}
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                />
+              </Grid>
               <Grid item xs={12} md={4}>
                 <Typography variant="subtitle1">Cluster</Typography>
                 <Box display="flex" alignItems="center" gap={1}>
@@ -401,6 +445,42 @@ const K8sLogScanner = () => {
                   )}
                 </Paper>
               </Grid>
+              {selectedCluster && selectedNamespaces.length === 1 && (
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1">Pods</Typography>
+                  <Paper variant="outlined" sx={{ p: 1, minHeight: 56 }}>
+                    {!Array.isArray(availablePods) || availablePods.length === 0 ? (
+                      <Typography color="text.secondary" fontStyle="italic">
+                        {error && error.toLowerCase().includes('pod') ? (
+                          <>Could not fetch pods. Please check your cluster connectivity and try again.</>
+                        ) : (
+                          <>No pods found for this namespace.</>
+                        )}
+                      </Typography>
+                    ) : (
+                      <FormGroup row>
+                        {availablePods.map(pod => (
+                          <FormControlLabel
+                            key={pod}
+                            control={
+                              <Checkbox
+                                checked={jobForm.pods.includes(pod)}
+                                onChange={() => setJobForm(prev => ({
+                                  ...prev,
+                                  pods: prev.pods.includes(pod)
+                                    ? prev.pods.filter(p => p !== pod)
+                                    : [...prev.pods, pod],
+                                }))}
+                              />
+                            }
+                            label={pod}
+                          />
+                        ))}
+                      </FormGroup>
+                    )}
+                  </Paper>
+                </Grid>
+              )}
               <Grid item xs={12} md={4}>
                 <Typography variant="subtitle1">Scan Configuration</Typography>
                 <Box>
@@ -475,15 +555,49 @@ const K8sLogScanner = () => {
                 {scanning ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
                 {scanning ? 'Scanning...' : 'Scan Now'}
               </Button>
-              <Button
-                variant="contained"
-                color="success"
-                onClick={handleCreateJob}
-                disabled={jobLoading || !selectedCluster || selectedNamespaces.length === 0}
-              >
-                {jobLoading ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
-                {jobLoading ? 'Creating...' : 'Create Job'}
-              </Button>
+              {editingJobId ? (
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={async () => {
+                    setJobLoading(true);
+                    setJobError('');
+                    try {
+                      await api.updateLogScanJob(editingJobId, {
+                        name: jobForm.name,
+                        namespace: jobForm.namespace,
+                        log_levels: jobForm.logLevels,
+                        interval: parseInt(jobForm.interval, 10) * 60,
+                        pods: jobForm.pods,
+                        cluster: selectedCluster,
+                      });
+                      setEditingJobId(null);
+                      setShowJobForm(false);
+                      setJobForm({ name: '', namespace: 'default', logLevels: ['ERROR', 'WARN', 'CRITICAL'], interval: 300, pods: [] });
+                      fetchJobs();
+                      notify('Job updated!', 'success');
+                    } catch (err) {
+                      setJobError('Failed to update job: ' + err.message);
+                    } finally {
+                      setJobLoading(false);
+                    }
+                  }}
+                  disabled={jobLoading || !selectedCluster || selectedNamespaces.length === 0}
+                >
+                  {jobLoading ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                  {jobLoading ? 'Saving...' : 'Save Changes'}
+                </Button>
+              ) : (
+                <Button
+                  variant="contained"
+                  color="success"
+                  onClick={handleCreateJob}
+                  disabled={jobLoading || !selectedCluster || selectedNamespaces.length === 0}
+                >
+                  {jobLoading ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                  {jobLoading ? 'Creating...' : 'Create Job'}
+                </Button>
+              )}
               <Button variant="outlined" color="secondary" onClick={() => setShowJobForm(false)}>Cancel</Button>
             </Box>
           </CardContent>
@@ -517,9 +631,38 @@ const K8sLogScanner = () => {
                         Created: {new Date(job.createdAt || job.created_at).toLocaleString()} | Last Run: {job.lastRun ? new Date(job.lastRun).toLocaleString() : 'Never'}
                       </Typography>
                     </Box>
-                    <IconButton color="error" onClick={() => handleDeleteJob(job.id)} disabled={jobLoading} title="Delete Job">
-                      <DeleteIcon />
-                    </IconButton>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <IconButton color="primary" onClick={async () => {
+                        setEditingJobId(job.id);
+                        setShowJobForm(true);
+                        const cluster = job.cluster || selectedCluster;
+                        const ns = job.namespace;
+                        setSelectedCluster(cluster);
+                        setSelectedNamespaces([ns]);
+                        // Fetch namespaces for the cluster
+                        if (cluster) {
+                          const nsResp = await api.getK8sNamespaces(cluster);
+                          setNamespaces(nsResp.namespaces || []);
+                        }
+                        // Fetch pods for the cluster/namespace
+                        if (cluster && ns) {
+                          const pods = await api.getK8sPods(cluster, ns);
+                          setAvailablePods(pods);
+                        }
+                        setJobForm({
+                          name: job.name || '',
+                          namespace: ns, // ensure this is set to the job's actual namespace
+                          logLevels: job.logLevels || job.log_levels || ['ERROR', 'WARN', 'CRITICAL'],
+                          interval: job.interval ? Math.round(job.interval / 60) : 5,
+                          pods: job.pods || [],
+                        });
+                      }} disabled={jobLoading} title="Edit Job">
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton color="error" onClick={() => handleDeleteJob(job.id)} disabled={jobLoading} title="Delete Job">
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
                   </Box>
                 </Paper>
               </Grid>

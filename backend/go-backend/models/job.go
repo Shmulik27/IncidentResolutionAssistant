@@ -4,14 +4,17 @@ import "time"
 
 // Job represents a scheduled log scan job for a user
 type Job struct {
-	ID        string        `json:"id"`
-	UserID    string        `json:"user_id"`
-	Name      string        `json:"name"`
-	Namespace string        `json:"namespace"`
-	LogLevels []string      `json:"log_levels"`
-	Interval  time.Duration `json:"interval"` // in seconds
-	CreatedAt time.Time     `json:"created_at"`
-	LastRun   time.Time     `json:"last_run"`
+	ID            string    `json:"id"`
+	UserID        string    `json:"user_id"`
+	Name          string    `json:"name"`
+	Cluster       string    `json:"cluster"`
+	Namespace     string    `json:"namespace"`
+	LogLevels     []string  `json:"log_levels"`
+	Interval      int       `json:"interval"` // seconds
+	CreatedAt     time.Time `json:"created_at"`
+	LastRun       time.Time `json:"last_run"`
+	Microservices []string  `json:"microservices"`
+	Pods          []string  `json:"pods"`
 }
 
 // Incident represents a detected incident from a log scan

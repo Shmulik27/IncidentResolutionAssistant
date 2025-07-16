@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+if ! command -v gtimeout &> /dev/null; then
+  echo "gtimeout could not be found. Please install coreutils: brew install coreutils"
+  exit 1
+fi
+
+export TEST_MODE=1
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
@@ -18,7 +25,7 @@ run_test "Python Knowledge Base/Vector Search Tests" "cd backend/python-services
 run_test "Python Incident Integrator Tests" "cd backend/python-services/incident_integrator && pytest && cd - > /dev/null"
 
 # Go backend (unit, integration, E2E)
-run_test "Go Backend Tests (unit, integration, E2E)" "cd backend/go-backend && go test -v ./... && cd - > /dev/null"
+run_test "Go Backend Tests (unit, integration, E2E)" "cd backend/go-backend && gtimeout 5m go test -v ./... && cd - > /dev/null"
 
 # Frontend unit/integration tests
 run_test "Frontend Unit/Integration Tests" "cd frontend && npm install && npm test -- --watchAll=false && cd - > /dev/null"

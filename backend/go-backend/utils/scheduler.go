@@ -46,7 +46,7 @@ func runScheduler() {
 			jobsMutex.RLock()
 			for userID, userJobs := range jobs {
 				for i, job := range userJobs {
-					if time.Since(job.LastRun) >= job.Interval {
+					if time.Since(job.LastRun) >= time.Duration(job.Interval)*time.Second {
 						// Run job in background, limited by semaphore
 						sem <- struct{}{}
 						go func(userID string, job models.Job, jobIdx int) {
@@ -100,20 +100,42 @@ func runLogScanJobImpl(userID string, job models.Job) ([]models.Incident, error)
 		return nil, err
 	}
 
-	// Fetch logs from all pods in the namespace
-	pds, err := clientset.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		return nil, err
+	// Fetch logs from selected pods in the namespace
+	var podsToScan []string
+	if len(job.Pods) > 0 {
+		podsToScan = job.Pods
+	} else {
+		pds, err := clientset.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		for _, pod := range pds.Items {
+			podsToScan = append(podsToScan, pod.Name)
+		}
 	}
 	var logs []string
 	logLevels := make(map[string]bool)
 	for _, lvl := range job.LogLevels {
 		logLevels[strings.ToUpper(lvl)] = true
 	}
-	for _, pod := range pds.Items {
-		for _, c := range pod.Spec.Containers {
+	for _, podName := range podsToScan {
+		var podObj *corev1.Pod
+		pods, err := clientset.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		for _, pod := range pods.Items {
+			if pod.Name == podName {
+				podObj = &pod
+				break
+			}
+		}
+		if podObj == nil {
+			continue // pod not found
+		}
+		for _, c := range podObj.Spec.Containers {
 			logOpts := &corev1.PodLogOptions{Container: c.Name, TailLines: int64Ptr(100)}
-			reqLog := clientset.CoreV1().Pods(job.Namespace).GetLogs(pod.Name, logOpts)
+			reqLog := clientset.CoreV1().Pods(job.Namespace).GetLogs(podName, logOpts)
 			stream, err := reqLog.Stream(context.Background())
 			if err != nil {
 				continue
@@ -138,57 +160,58 @@ func runLogScanJobImpl(userID string, job models.Job) ([]models.Incident, error)
 
 	var incidents []models.Incident
 	for _, logLine := range logs {
+		// Only call selected microservices
+		ms := make(map[string]bool)
+		for _, m := range job.Microservices {
+			ms[m] = true
+		}
 		// 1. Log Analyzer
-		analyzerURL := os.Getenv("LOG_ANALYZER_URL")
-		analyzeReq := map[string]interface{}{"logs": []string{logLine}}
-		analyzeBody, _ := json.Marshal(analyzeReq)
-		analyzeResp, err := http.Post(analyzerURL, "application/json", bytes.NewReader(analyzeBody))
-		var analyzeResult map[string]interface{}
-		if err == nil {
-			defer analyzeResp.Body.Close()
-			json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult)
-		} else {
-			analyzeResult = map[string]interface{}{"detail": "Not Found"}
+		var analyzeResult map[string]interface{} = map[string]interface{}{"detail": "Not Run"}
+		if ms["log_analyzer"] {
+			analyzerURL := os.Getenv("LOG_ANALYZER_URL")
+			analyzeReq := map[string]interface{}{"logs": []string{logLine}}
+			analyzeBody, _ := json.Marshal(analyzeReq)
+			analyzeResp, err := http.Post(analyzerURL, "application/json", bytes.NewReader(analyzeBody))
+			if err == nil {
+				defer analyzeResp.Body.Close()
+				json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult)
+			}
 		}
-
 		// 2. Root Cause Predictor
-		predictorURL := os.Getenv("ROOT_CAUSE_PREDICTOR_URL")
-		predictBody, _ := json.Marshal(analyzeReq)
-		predictResp, err := http.Post(predictorURL, "application/json", bytes.NewReader(predictBody))
-		var predictResult map[string]interface{}
-		if err == nil {
-			defer predictResp.Body.Close()
-			json.NewDecoder(predictResp.Body).Decode(&predictResult)
-		} else {
-			predictResult = map[string]interface{}{"detail": "Not Found"}
+		var predictResult map[string]interface{} = map[string]interface{}{"detail": "Not Run"}
+		if ms["root_cause_predictor"] {
+			predictorURL := os.Getenv("ROOT_CAUSE_PREDICTOR_URL")
+			predictBody, _ := json.Marshal(map[string]interface{}{"logs": []string{logLine}})
+			predictResp, err := http.Post(predictorURL, "application/json", bytes.NewReader(predictBody))
+			if err == nil {
+				defer predictResp.Body.Close()
+				json.NewDecoder(predictResp.Body).Decode(&predictResult)
+			}
 		}
-
 		// 3. Knowledge Base Search
-		kbURL := os.Getenv("KNOWLEDGE_BASE_URL")
-		kbReq := map[string]interface{}{"query": predictResult["root_cause"]}
-		kbBody, _ := json.Marshal(kbReq)
-		kbResp, err := http.Post(kbURL, "application/json", bytes.NewReader(kbBody))
-		var kbResult map[string]interface{}
-		if err == nil {
-			defer kbResp.Body.Close()
-			json.NewDecoder(kbResp.Body).Decode(&kbResult)
-		} else {
-			kbResult = map[string]interface{}{"detail": "Not Found"}
+		var kbResult map[string]interface{} = map[string]interface{}{"detail": "Not Run"}
+		if ms["knowledge_base"] {
+			kbURL := os.Getenv("KNOWLEDGE_BASE_URL")
+			kbReq := map[string]interface{}{"query": predictResult["root_cause"]}
+			kbBody, _ := json.Marshal(kbReq)
+			kbResp, err := http.Post(kbURL, "application/json", bytes.NewReader(kbBody))
+			if err == nil {
+				defer kbResp.Body.Close()
+				json.NewDecoder(kbResp.Body).Decode(&kbResult)
+			}
 		}
-
 		// 4. Action Recommender
-		recommenderURL := os.Getenv("ACTION_RECOMMENDER_URL")
-		recReq := map[string]interface{}{"root_cause": predictResult["root_cause"]}
-		recBody, _ := json.Marshal(recReq)
-		recResp, err := http.Post(recommenderURL, "application/json", bytes.NewReader(recBody))
-		var recResult map[string]interface{}
-		if err == nil {
-			defer recResp.Body.Close()
-			json.NewDecoder(recResp.Body).Decode(&recResult)
-		} else {
-			recResult = map[string]interface{}{"detail": "Not Found"}
+		var recResult map[string]interface{} = map[string]interface{}{"detail": "Not Run"}
+		if ms["action_recommender"] {
+			recommenderURL := os.Getenv("ACTION_RECOMMENDER_URL")
+			recReq := map[string]interface{}{"root_cause": predictResult["root_cause"]}
+			recBody, _ := json.Marshal(recReq)
+			recResp, err := http.Post(recommenderURL, "application/json", bytes.NewReader(recBody))
+			if err == nil {
+				defer recResp.Body.Close()
+				json.NewDecoder(recResp.Body).Decode(&recResult)
+			}
 		}
-
 		// Create Incident
 		incident := models.Incident{
 			ID:        uuid.New().String(),

@@ -134,6 +134,16 @@ export const api = {
     }
   },
 
+  async getK8sPods(cluster, namespace) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/k8s-pods?cluster=${encodeURIComponent(cluster)}&namespace=${encodeURIComponent(namespace)}`);
+      return response.data.pods || [];
+    } catch (error) {
+      console.error('Error fetching K8s pods:', error);
+      throw new Error('Failed to fetch K8s pods');
+    }
+  },
+
   // Log Scan Job Management
   async createLogScanJob(job) {
     const token = localStorage.getItem('firebaseToken');
@@ -158,6 +168,16 @@ export const api = {
     const token = localStorage.getItem('firebaseToken');
     const response = await axios.delete(
       `${API_BASE_URL}/api/log-scan-jobs/${jobId}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    return response.data;
+  },
+
+  async updateLogScanJob(jobId, job) {
+    const token = localStorage.getItem('firebaseToken');
+    const response = await axios.put(
+      `${API_BASE_URL}/api/log-scan-jobs/${jobId}`,
+      job,
       { headers: token ? { Authorization: `Bearer ${token}` } : {} }
     );
     return response.data;

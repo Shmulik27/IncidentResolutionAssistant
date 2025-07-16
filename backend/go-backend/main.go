@@ -18,6 +18,7 @@ import (
 )
 
 var firebaseAuth *auth.Client
+var TestMode = os.Getenv("TEST_MODE") == "1"
 
 func InitFirebase() {
 	credPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -33,6 +34,12 @@ func InitFirebase() {
 
 func FirebaseAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if TestMode {
+			// Inject a mock user for tests
+			ctx := context.WithValue(r.Context(), "user", &auth.Token{UID: "test-user"})
+			next(w, r.WithContext(ctx))
+			return
+		}
 		header := r.Header.Get("Authorization")
 		if header == "" || len(header) < 8 || header[:7] != "Bearer " {
 			http.Error(w, "Missing or invalid Authorization header", http.StatusUnauthorized)
@@ -69,6 +76,7 @@ func main() {
 	http.Handle("/metrics", withCORS(promhttp.Handler().ServeHTTP))
 	http.HandleFunc("/metrics/stream", withCORS(handlers.MetricsStreamHandler))
 	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces))
+	http.HandleFunc("/k8s-pods", withCORS(handlers.HandleK8sPods))
 	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs))
 
 	// Protected endpoints (require Firebase Auth)
@@ -90,6 +98,9 @@ func main() {
 	http.HandleFunc("/api/log-scan-jobs/", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
 			handlers.HandleDeleteLogScanJob(w, r)
+			return
+		} else if r.Method == http.MethodPut {
+			handlers.HandleUpdateLogScanJob(w, r)
 			return
 		} else if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

@@ -21,7 +21,7 @@ func TestJobPersistence(t *testing.T) {
 		Name:      "Test Job",
 		Namespace: "default",
 		LogLevels: []string{"ERROR"},
-		Interval:  60 * time.Second,
+		Interval:  60,
 		CreatedAt: time.Now(),
 	}
 

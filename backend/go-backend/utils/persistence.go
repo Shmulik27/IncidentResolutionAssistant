@@ -66,8 +66,8 @@ func LoadIncidents() error {
 // SaveIncidents saves incidents from memory to the JSON file
 func SaveIncidents() error {
 	incidentsMutex.RLock()
-	defer incidentsMutex.RUnlock()
 	data, err := json.MarshalIndent(incidents, "", "  ")
+	incidentsMutex.RUnlock()
 	if err != nil {
 		return err
 	}
@@ -108,8 +108,8 @@ func DeleteJob(userID, jobID string) error {
 // AddIncident adds an incident for a user and persists it
 func AddIncident(userID string, incident models.Incident) error {
 	incidentsMutex.Lock()
-	defer incidentsMutex.Unlock()
 	incidents[userID] = append(incidents[userID], incident)
+	incidentsMutex.Unlock()
 	return SaveIncidents()
 }
 
@@ -122,4 +122,11 @@ func GetRecentIncidents(userID string) []models.Incident {
 		return userIncidents[len(userIncidents)-50:]
 	}
 	return userIncidents
+}
+
+// SetJobs replaces all jobs for a user (used for editing jobs)
+func SetJobs(userID string, newJobs []models.Job) {
+	jobsMutex.Lock()
+	jobs[userID] = newJobs
+	jobsMutex.Unlock()
 }

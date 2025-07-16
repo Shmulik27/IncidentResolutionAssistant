@@ -213,4 +213,44 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GET /k8s-pods?cluster=...&namespace=...
+func HandleK8sPods(w http.ResponseWriter, r *http.Request) {
+	cluster := r.URL.Query().Get("cluster")
+	namespace := r.URL.Query().Get("namespace")
+	if cluster == "" || namespace == "" {
+		http.Error(w, "Missing cluster or namespace", http.StatusBadRequest)
+		return
+	}
+	var config *rest.Config
+	var err error
+	config, err = rest.InClusterConfig()
+	if err != nil {
+		kubeconfig := os.Getenv("KUBECONFIG")
+		if kubeconfig == "" {
+			kubeconfig = os.ExpandEnv("$HOME/.kube/config")
+		}
+		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			http.Error(w, "Failed to load kube config", http.StatusInternalServerError)
+			return
+		}
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		http.Error(w, "Failed to create k8s client", http.StatusInternalServerError)
+		return
+	}
+	pods, err := clientset.CoreV1().Pods(namespace).List(r.Context(), metav1.ListOptions{})
+	if err != nil {
+		http.Error(w, "Failed to list pods", http.StatusInternalServerError)
+		return
+	}
+	var podNames []string
+	for _, pod := range pods.Items {
+		podNames = append(podNames, pod.Name)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string][]string{"pods": podNames})
+}
+
 func int64Ptr(i int64) *int64 { return &i }
