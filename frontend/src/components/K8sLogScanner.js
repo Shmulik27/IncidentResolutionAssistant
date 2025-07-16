@@ -473,7 +473,16 @@ const K8sLogScanner = () => {
                 disabled={scanning || !selectedCluster}
               >
                 {scanning ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
-                {scanning ? 'Scanning...' : 'Scan Logs'}
+                {scanning ? 'Scanning...' : 'Scan Now'}
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={handleCreateJob}
+                disabled={jobLoading || !selectedCluster || selectedNamespaces.length === 0}
+              >
+                {jobLoading ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                {jobLoading ? 'Creating...' : 'Create Job'}
               </Button>
               <Button variant="outlined" color="secondary" onClick={() => setShowJobForm(false)}>Cancel</Button>
             </Box>

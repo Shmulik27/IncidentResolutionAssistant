@@ -74,12 +74,13 @@ func SaveIncidents() error {
 	return ioutil.WriteFile(IncidentsFile, data, 0644)
 }
 
-// AddJob adds a job for a user and persists it
+// AddJob adds a job for a user and persists it asynchronously
 func AddJob(userID string, job models.Job) error {
 	jobsMutex.Lock()
-	defer jobsMutex.Unlock()
 	jobs[userID] = append(jobs[userID], job)
-	return SaveJobs()
+	jobsMutex.Unlock()
+	go SaveJobs() // Save in background
+	return nil
 }
 
 // GetJobs returns all jobs for a user
@@ -89,10 +90,9 @@ func GetJobs(userID string) []models.Job {
 	return jobs[userID]
 }
 
-// DeleteJob deletes a job by ID for a user and persists the change
+// DeleteJob deletes a job by ID for a user and persists the change asynchronously
 func DeleteJob(userID, jobID string) error {
 	jobsMutex.Lock()
-	defer jobsMutex.Unlock()
 	userJobs := jobs[userID]
 	for i, job := range userJobs {
 		if job.ID == jobID {
@@ -100,7 +100,9 @@ func DeleteJob(userID, jobID string) error {
 			break
 		}
 	}
-	return SaveJobs()
+	jobsMutex.Unlock()
+	go SaveJobs() // Save in background
+	return nil
 }
 
 // AddIncident adds an incident for a user and persists it

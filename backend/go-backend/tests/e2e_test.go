@@ -6,10 +6,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -62,7 +62,6 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 		t.Fatalf("Failed to start backend: %v", err)
 	}
 	go http.Serve(ln, mux)
-	baseURL := fmt.Sprintf("http://%s", ln.Addr().String())
 
 	// Create a job via API
 	jobReq := map[string]interface{}{
@@ -72,15 +71,14 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 		"interval":   1,
 	}
 	body, _ := json.Marshal(jobReq)
-	resp, err := http.Post(baseURL+"/api/log-scan-jobs", "application/json", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("Failed to create job: %v", err)
+	// Use httptest to inject user context
+	r := httptest.NewRequest("POST", "/api/log-scan-jobs", bytes.NewReader(body))
+	r = withUser(r, "e2euser")
+	w := httptest.NewRecorder()
+	handlers.HandleCreateLogScanJob(w, r)
+	if w.Code != 201 {
+		t.Fatalf("Create job failed: %d %s", w.Code, w.Body.String())
 	}
-	if resp.StatusCode != 201 {
-		b, _ := io.ReadAll(resp.Body)
-		t.Fatalf("Create job failed: %d %s", resp.StatusCode, string(b))
-	}
-	resp.Body.Close()
 
 	// Start scheduler
 	go utils.StartScheduler()
@@ -90,16 +88,15 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 	time.Sleep(1500 * time.Millisecond)
 
 	// Fetch incidents via API
-	resp, err = http.Get(baseURL + "/api/incidents/recent")
-	if err != nil {
-		t.Fatalf("Failed to get incidents: %v", err)
-	}
-	if resp.StatusCode != 200 {
-		b, _ := io.ReadAll(resp.Body)
-		t.Fatalf("Get incidents failed: %d %s", resp.StatusCode, string(b))
+	r = httptest.NewRequest("GET", "/api/incidents/recent", nil)
+	r = withUser(r, "e2euser")
+	w = httptest.NewRecorder()
+	handlers.HandleGetRecentIncidents(w, r)
+	if w.Code != 200 {
+		t.Fatalf("Get incidents failed: %d %s", w.Code, w.Body.String())
 	}
 	var incidents []map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&incidents)
+	json.Unmarshal(w.Body.Bytes(), &incidents)
 	if len(incidents) == 0 {
 		t.Fatalf("Expected at least one incident, got none")
 	}

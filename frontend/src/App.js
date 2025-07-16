@@ -223,7 +223,7 @@ function AppContent({ setMode, mode }) {
             }}
           >
             <Routes>
-              <Route path="/" element={<ApplicationMonitoring />} />
+              <Route path="/" element={<IncidentAnalytics />} />
               <Route path="/monitoring" element={<ApplicationMonitoring />} />
               <Route path="/incident-dashboard" element={<IncidentAnalytics />} />
               <Route path="/analyzer" element={<IncidentAnalyzer />} />
