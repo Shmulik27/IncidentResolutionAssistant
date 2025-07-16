@@ -46,6 +46,7 @@ func FirebaseAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 		ctx := context.WithValue(r.Context(), "user", token)
 		next(w, r.WithContext(ctx))
+
 	}
 }
 
