@@ -39,3 +39,4 @@ __pycache__/
 .pytest_cache/
 *.pyc
 
+backend/go-backend/serviceAccountKey.json
