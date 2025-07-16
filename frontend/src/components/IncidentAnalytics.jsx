@@ -65,80 +65,89 @@ const IncidentAnalytics = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [timeRange, setTimeRange] = useState('30d');
   const [live, setLive] = useState(false);
+  const [recentIncidents, setRecentIncidents] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState(null);
 
-  // Mock incident data
-  const mockIncidents = [
-    { id: 1, title: 'Database Connection Timeout', severity: 'High', status: 'Resolved', createdAt: '2024-01-15', resolvedAt: '2024-01-15', resolutionTime: 2.5, service: 'log-analyzer', category: 'Infrastructure' },
-    { id: 2, title: 'Memory Leak in Service', severity: 'Medium', status: 'Open', createdAt: '2024-01-14', resolvedAt: null, resolutionTime: null, service: 'root-cause-predictor', category: 'Performance' },
-    { id: 3, title: 'API Rate Limit Exceeded', severity: 'Low', status: 'Resolved', createdAt: '2024-01-13', resolvedAt: '2024-01-13', resolutionTime: 1.2, service: 'knowledge-base', category: 'API' },
-    { id: 4, title: 'Disk Space Full', severity: 'High', status: 'Resolved', createdAt: '2024-01-12', resolvedAt: '2024-01-12', resolutionTime: 4.0, service: 'action-recommender', category: 'Infrastructure' },
-    { id: 5, title: 'Authentication Failure', severity: 'Medium', status: 'Resolved', createdAt: '2024-01-11', resolvedAt: '2024-01-11', resolutionTime: 3.1, service: 'incident-integrator', category: 'Security' },
-    { id: 6, title: 'Network Latency', severity: 'Low', status: 'Open', createdAt: '2024-01-10', resolvedAt: null, resolutionTime: null, service: 'k8s-log-scanner', category: 'Network' },
-    { id: 7, title: 'Service Crash', severity: 'Critical', status: 'Resolved', createdAt: '2024-01-09', resolvedAt: '2024-01-09', resolutionTime: 6.5, service: 'log-analyzer', category: 'Stability' },
-    { id: 8, title: 'Data Corruption', severity: 'High', status: 'Resolved', createdAt: '2024-01-08', resolvedAt: '2024-01-08', resolutionTime: 8.2, service: 'knowledge-base', category: 'Data' }
-  ];
-
-  const mockTrends = [
-    { date: '2024-01-01', incidents: 3, resolved: 2, avgResolutionTime: 2.1 },
-    { date: '2024-01-02', incidents: 1, resolved: 1, avgResolutionTime: 1.5 },
-    { date: '2024-01-03', incidents: 5, resolved: 4, avgResolutionTime: 3.2 },
-    { date: '2024-01-04', incidents: 2, resolved: 2, avgResolutionTime: 2.8 },
-    { date: '2024-01-05', incidents: 4, resolved: 3, avgResolutionTime: 4.1 },
-    { date: '2024-01-06', incidents: 0, resolved: 0, avgResolutionTime: 0 },
-    { date: '2024-01-07', incidents: 6, resolved: 5, avgResolutionTime: 2.9 },
-    { date: '2024-01-08', incidents: 3, resolved: 2, avgResolutionTime: 3.5 },
-    { date: '2024-01-09', incidents: 7, resolved: 6, avgResolutionTime: 4.2 },
-    { date: '2024-01-10', incidents: 2, resolved: 1, avgResolutionTime: 1.8 },
-    { date: '2024-01-11', incidents: 4, resolved: 4, avgResolutionTime: 2.3 },
-    { date: '2024-01-12', incidents: 1, resolved: 1, avgResolutionTime: 1.2 },
-    { date: '2024-01-13', incidents: 3, resolved: 2, avgResolutionTime: 3.1 },
-    { date: '2024-01-14', incidents: 5, resolved: 4, avgResolutionTime: 2.7 },
-    { date: '2024-01-15', incidents: 2, resolved: 1, avgResolutionTime: 2.5 }
-  ];
-
-  const mockTopIssues = [
-    { category: 'Infrastructure', count: 15, avgResolutionTime: 3.2 },
-    { category: 'Performance', count: 12, avgResolutionTime: 4.1 },
-    { category: 'API', count: 8, avgResolutionTime: 1.8 },
-    { category: 'Security', count: 6, avgResolutionTime: 2.9 },
-    { category: 'Network', count: 5, avgResolutionTime: 2.3 },
-    { category: 'Data', count: 4, avgResolutionTime: 5.2 }
-  ];
-
-  const mockSeverityDistribution = [
-    { severity: 'Critical', count: 3, color: '#f44336' },
-    { severity: 'High', count: 8, color: '#ff9800' },
-    { severity: 'Medium', count: 12, color: '#ffc107' },
-    { severity: 'Low', count: 6, color: '#4caf50' }
-  ];
-
-  const mockResolutionTimes = [
-    { service: 'log-analyzer', avgTime: 2.8, totalIncidents: 5 },
-    { service: 'root-cause-predictor', avgTime: 3.5, totalIncidents: 3 },
-    { service: 'knowledge-base', avgTime: 2.1, totalIncidents: 4 },
-    { service: 'action-recommender', avgTime: 4.2, totalIncidents: 2 },
-    { service: 'incident-integrator', avgTime: 3.1, totalIncidents: 3 },
-    { service: 'k8s-log-scanner', avgTime: 2.9, totalIncidents: 2 }
-  ];
-
-  const fetchIncidentAnalytics = async () => {
+  // Compute analytics from recentIncidents
+  useEffect(() => {
     setLoading(true);
+    // Defensive: always use array
+    const incidents = Array.isArray(recentIncidents) ? recentIncidents : [];
+    // Trends: group by date (createdAt or timestamp)
+    const trendsMap = {};
+    incidents.forEach(inc => {
+      const date = inc.createdAt ? inc.createdAt.slice(0, 10) : (inc.timestamp ? new Date(inc.timestamp).toISOString().slice(0, 10) : '');
+      if (!trendsMap[date]) trendsMap[date] = { date, incidents: 0, resolved: 0, avgResolutionTime: 0, totalResolutionTime: 0 };
+      trendsMap[date].incidents++;
+      if (inc.status === 'Resolved') {
+        trendsMap[date].resolved++;
+        if (inc.resolutionTime) {
+          trendsMap[date].totalResolutionTime += Number(inc.resolutionTime);
+        }
+      }
+    });
+    const trends = Object.values(trendsMap).map(t => ({
+      ...t,
+      avgResolutionTime: t.resolved > 0 ? t.totalResolutionTime / t.resolved : 0
+    }));
+    // Patterns: resolved incidents with resolutionTime
+    const patterns = incidents.filter(i => i.resolutionTime);
+    // Top Issues: group by category
+    const topIssuesMap = {};
+    incidents.forEach(inc => {
+      const cat = inc.category || 'Other';
+      if (!topIssuesMap[cat]) topIssuesMap[cat] = { category: cat, count: 0, totalResolutionTime: 0 };
+      topIssuesMap[cat].count++;
+      if (inc.resolutionTime) topIssuesMap[cat].totalResolutionTime += Number(inc.resolutionTime);
+    });
+    const topIssues = Object.values(topIssuesMap).map(t => ({
+      ...t,
+      avgResolutionTime: t.count > 0 ? t.totalResolutionTime / t.count : 0
+    }));
+    // Severity Distribution
+    const severityColors = { Critical: '#f44336', High: '#ff9800', Medium: '#ffc107', Low: '#4caf50' };
+    const severityMap = {};
+    incidents.forEach(inc => {
+      const sev = inc.severity || 'Other';
+      if (!severityMap[sev]) severityMap[sev] = { severity: sev, count: 0, color: severityColors[sev] || '#90caf9' };
+      severityMap[sev].count++;
+    });
+    const severityDistribution = Object.values(severityMap);
+    // Resolution Times by Service
+    const serviceMap = {};
+    incidents.forEach(inc => {
+      const svc = inc.service || 'Unknown';
+      if (!serviceMap[svc]) serviceMap[svc] = { service: svc, avgTime: 0, totalIncidents: 0, totalTime: 0 };
+      serviceMap[svc].totalIncidents++;
+      if (inc.resolutionTime) serviceMap[svc].totalTime += Number(inc.resolutionTime);
+    });
+    const resolutionTimes = Object.values(serviceMap).map(s => ({
+      ...s,
+      avgTime: s.totalIncidents > 0 ? s.totalTime / s.totalIncidents : 0
+    }));
+    setAnalytics({
+      incidents,
+      trends,
+      patterns,
+      topIssues,
+      resolutionTimes,
+      severityDistribution
+    });
+    setLoading(false);
+  }, [recentIncidents]);
+
+  // Fetch real recent incidents from backend
+  const fetchRecentIncidents = async () => {
+    setRecentLoading(true);
+    setRecentError(null);
     try {
-      // In a real implementation, these would be API calls
-      setAnalytics({
-        incidents: mockIncidents,
-        trends: mockTrends,
-        patterns: mockIncidents.filter(i => i.resolutionTime),
-        topIssues: mockTopIssues,
-        resolutionTimes: mockResolutionTimes,
-        severityDistribution: mockSeverityDistribution
-      });
-      setError(null);
-      setLastUpdated(new Date());
+      const incidents = await api.getRecentIncidents();
+      setRecentIncidents(incidents);
     } catch (err) {
-      setError('Failed to fetch incident analytics');
+      setRecentError('Failed to fetch recent incidents: ' + err.message);
     } finally {
-      setLoading(false);
+      setRecentLoading(false);
     }
   };
 
@@ -172,11 +181,11 @@ const IncidentAnalytics = () => {
       eventSource.onerror = () => {
         setLive(false);
         eventSource.close();
-        fallbackInterval = setInterval(fetchIncidentAnalytics, 5000);
+        fallbackInterval = setInterval(fetchRecentIncidents, 5000);
       };
     } catch (err) {
       setLive(false);
-      fallbackInterval = setInterval(fetchIncidentAnalytics, 5000);
+      fallbackInterval = setInterval(fetchRecentIncidents, 5000);
     }
     return () => {
       if (eventSource) eventSource.close();
@@ -186,8 +195,10 @@ const IncidentAnalytics = () => {
   }, []);
 
   useEffect(() => {
-    fetchIncidentAnalytics();
-    const interval = setInterval(fetchIncidentAnalytics, 300000); // Refresh every 5 minutes
+    fetchRecentIncidents();
+    const interval = setInterval(() => {
+      fetchRecentIncidents();
+    }, 300000); // Refresh every 5 minutes
     return () => clearInterval(interval);
   }, [timeRange]);
 
@@ -206,19 +217,20 @@ const IncidentAnalytics = () => {
   };
 
   const calculateMetrics = () => {
-    const totalIncidents = analytics.incidents.length;
-    const resolvedIncidents = analytics.incidents.filter(i => i.status === 'Resolved').length;
+    const incidentsArr = Array.isArray(analytics.incidents) ? analytics.incidents : [];
+    const patternsArr = Array.isArray(analytics.patterns) ? analytics.patterns : [];
+    const totalIncidents = incidentsArr.length;
+    const resolvedIncidents = incidentsArr.filter(i => i.status === 'Resolved').length;
     const openIncidents = totalIncidents - resolvedIncidents;
-    const avgResolutionTime = analytics.patterns.length > 0 
-      ? analytics.patterns.reduce((sum, i) => sum + i.resolutionTime, 0) / analytics.patterns.length
+    const avgResolutionTime = patternsArr.length > 0 
+      ? patternsArr.reduce((sum, i) => sum + i.resolutionTime, 0) / patternsArr.length
       : 0;
-    
     return { totalIncidents, resolvedIncidents, openIncidents, avgResolutionTime };
   };
 
   const metrics = calculateMetrics();
 
-  if (loading && analytics.incidents.length === 0) {
+  if (loading && (!Array.isArray(analytics.incidents) || analytics.incidents.length === 0)) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
@@ -254,14 +266,7 @@ const IncidentAnalytics = () => {
               <MenuItem value="90d">Last 90 Days</MenuItem>
             </Select>
           </FormControl>
-          <Button
-            variant="contained"
-            onClick={fetchIncidentAnalytics}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <Refresh />}
-          >
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </Button>
+          {/* Removed Refresh button since analytics are now computed from recentIncidents */}
         </Box>
       </Box>
 
@@ -437,6 +442,49 @@ const IncidentAnalytics = () => {
         </Grid>
       </Grid>
 
+      {/* Recent Incidents Section */}
+      <Box mt={4} mb={2}>
+        <Typography variant="h5" gutterBottom>
+          Recent Incidents (from Scheduled Log Scan Jobs)
+        </Typography>
+        {recentLoading ? (
+          <CircularProgress />
+        ) : recentError ? (
+          <Alert severity="error">{recentError}</Alert>
+        ) : !Array.isArray(recentIncidents) || recentIncidents.length === 0 ? (
+          <Alert severity="info">No recent incidents found.</Alert>
+        ) : (
+          <TableContainer component={Paper} sx={{ mt: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Timestamp</TableCell>
+                  <TableCell>Job</TableCell>
+                  <TableCell>Log Line</TableCell>
+                  <TableCell>Analysis</TableCell>
+                  <TableCell>Root Cause</TableCell>
+                  <TableCell>Knowledge</TableCell>
+                  <TableCell>Action</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {Array.isArray(recentIncidents) && recentIncidents.map(inc => (
+                  <TableRow key={inc.id}>
+                    <TableCell>{new Date(inc.timestamp).toLocaleString()}</TableCell>
+                    <TableCell>{inc.job_id || inc.jobId || ''}</TableCell>
+                    <TableCell style={{ maxWidth: 300, whiteSpace: 'pre-wrap' }}>{inc.log_line || inc.logLine}</TableCell>
+                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.analysis}</pre></TableCell>
+                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.root_cause}</pre></TableCell>
+                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.knowledge}</pre></TableCell>
+                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.action}</pre></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+      </Box>
+
       {/* Recent Incidents Table */}
       <Box sx={{ width: '100%', overflowX: 'auto', mb: 3 }}>
         <Card>
@@ -458,7 +506,7 @@ const IncidentAnalytics = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {analytics.incidents.slice(0, 10).map((incident) => (
+                  {Array.isArray(analytics.incidents) && analytics.incidents.slice(0, 10).map((incident) => (
                     <TableRow key={incident.id}>
                       <TableCell>{incident.title}</TableCell>
                       <TableCell>{incident.service}</TableCell>

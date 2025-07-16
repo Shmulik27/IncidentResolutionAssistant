@@ -1,6 +1,9 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'app')))
 import pytest
 from fastapi.testclient import TestClient
-from vector_search import app, search_incidents, SearchRequest
+from api import app, search_incidents, SearchRequest
 
 client = TestClient(app)
 

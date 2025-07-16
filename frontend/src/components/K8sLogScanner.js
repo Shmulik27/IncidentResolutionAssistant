@@ -2,11 +2,13 @@ import React, { useState, useEffect, useContext, useRef } from 'react';
 import { api } from '../services/api';
 import './K8sLogScanner.css';
 import { NotificationContext } from '../App';
-// Add Material-UI imports for Accordion if available
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
+import {
+  Accordion, AccordionSummary, AccordionDetails, Button, Card, CardContent, Typography, Grid, Paper, Divider, TextField, Select, MenuItem, Checkbox, FormControlLabel, FormGroup, Box, Chip, IconButton, CircularProgress, Alert
+} from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 const LOG_LEVEL_COLORS = {
   ERROR: '#ffcccc',
@@ -122,9 +124,30 @@ const K8sLogScanner = () => {
   const [showAllLogs, setShowAllLogs] = useState(false);
   const logsContainerRef = useRef(null);
 
+  // Scheduled jobs state
+  const [jobs, setJobs] = useState([]);
+  const [jobLoading, setJobLoading] = useState(false);
+  const [jobError, setJobError] = useState('');
+  const [jobForm, setJobForm] = useState({
+    name: '',
+    namespace: 'default',
+    logLevels: ['ERROR', 'WARN', 'CRITICAL'],
+    interval: 300 // seconds
+  });
+
   useEffect(() => {
-    loadClusters();
+    fetchJobs();
   }, []);
+
+  // State to control job creation form visibility
+  const [showJobForm, setShowJobForm] = useState(false);
+
+  // When job form is shown, fetch clusters
+  useEffect(() => {
+    if (showJobForm) {
+      loadClusters();
+    }
+  }, [showJobForm]);
 
   const loadClusters = async () => {
     try {
@@ -241,6 +264,69 @@ const K8sLogScanner = () => {
     }
   };
 
+  const fetchJobs = async () => {
+    setJobLoading(true);
+    setJobError('');
+    try {
+      const jobs = await api.listLogScanJobs();
+      setJobs(jobs);
+    } catch (err) {
+      setJobError('Failed to load jobs: ' + err.message);
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const handleJobFormChange = (e) => {
+    const { name, value } = e.target;
+    setJobForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleJobLogLevelToggle = (level) => {
+    setJobForm(prev => ({
+      ...prev,
+      logLevels: prev.logLevels.includes(level)
+        ? prev.logLevels.filter(l => l !== level)
+        : [...prev.logLevels, level]
+    }));
+  };
+
+  const handleCreateJob = async (e) => {
+    e.preventDefault();
+    setJobLoading(true);
+    setJobError('');
+    try {
+      const job = {
+        name: jobForm.name,
+        namespace: jobForm.namespace,
+        log_levels: jobForm.logLevels,
+        interval: parseInt(jobForm.interval, 10)
+      };
+      await api.createLogScanJob(job);
+      setJobForm({ name: '', namespace: 'default', logLevels: ['ERROR', 'WARN', 'CRITICAL'], interval: 300 });
+      fetchJobs();
+      notify('Scheduled log scan job created!', 'success');
+    } catch (err) {
+      setJobError('Failed to create job: ' + err.message);
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
+  const handleDeleteJob = async (jobId) => {
+    setJobLoading(true);
+    setJobError('');
+    try {
+      await api.deleteLogScanJob(jobId);
+      fetchJobs();
+      notify('Job deleted', 'success');
+    } catch (err) {
+      setJobError('Failed to delete job: ' + err.message);
+    } finally {
+      setJobLoading(false);
+    }
+  };
+
   // Filtering logs
   const getFilteredLogs = (logs) => {
     if (!logFilter) return logs;
@@ -254,189 +340,223 @@ const K8sLogScanner = () => {
   };
 
   return (
-    <div className="k8s-log-scanner">
-      <h2>Kubernetes Log Scanner</h2>
-      
+    <Box className="k8s-log-scanner" sx={{ maxWidth: 1100, mx: 'auto', p: 3 }}>
+      <Typography variant="h4" gutterBottom>Kubernetes Log Scanner</Typography>
       {error && (
-        <div className="error-message">
-          {error}
-          <button onClick={() => setError('')}>×</button>
-        </div>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError('')}>{error}</Alert>
+      )}
+      {showJobForm && (
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>Create New Log Scan Job</Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle1">Cluster</Typography>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Select
+                    fullWidth
+                    value={selectedCluster}
+                    onChange={e => handleClusterChange(e.target.value)}
+                    displayEmpty
+                  >
+                    <MenuItem value="">Select a cluster...</MenuItem>
+                    {Array.isArray(clusters) && clusters.filter(cluster => cluster.name !== '*').map(cluster => (
+                      <MenuItem key={cluster.cluster} value={cluster.cluster}>
+                        {cluster.name} ({cluster.cluster})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <IconButton onClick={loadClusters} size="small"><RefreshIcon /></IconButton>
+                </Box>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle1">Namespaces</Typography>
+                <Paper variant="outlined" sx={{ p: 1, minHeight: 56 }}>
+                  {selectedCluster === '' ? (
+                    <Typography color="text.secondary" fontStyle="italic">Select a cluster to view namespaces.</Typography>
+                  ) : !Array.isArray(namespaces) || namespaces.length === 0 ? (
+                    <Typography color="text.secondary" fontStyle="italic">
+                      {error && error.toLowerCase().includes('namespace') || error.toLowerCase().includes('connect') || error.toLowerCase().includes('load') ? (
+                        <>Could not connect to the cluster or fetch namespaces. Please check your cluster connectivity and try again.</>
+                      ) : (
+                        <>No namespaces found for this cluster, verify your logging to k8s cluster is enabled.</>
+                      )}
+                    </Typography>
+                  ) : (
+                    <FormGroup row>
+                      {Array.isArray(namespaces) && namespaces.map(namespace => (
+                        <FormControlLabel
+                          key={namespace}
+                          control={
+                            <Checkbox
+                              checked={selectedNamespaces.includes(namespace)}
+                              onChange={() => handleNamespaceToggle(namespace)}
+                            />
+                          }
+                          label={namespace}
+                        />
+                      ))}
+                    </FormGroup>
+                  )}
+                </Paper>
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle1">Scan Configuration</Typography>
+                <Box>
+                  <TextField
+                    label="Time Range (minutes)"
+                    type="number"
+                    value={scanConfig.timeRangeMinutes}
+                    onChange={e => setScanConfig(prev => ({ ...prev, timeRangeMinutes: parseInt(e.target.value) || 60 }))}
+                    inputProps={{ min: 1, max: 1440 }}
+                    size="small"
+                    sx={{ mb: 1, width: '100%' }}
+                  />
+                  <TextField
+                    label="Max Lines per Pod"
+                    type="number"
+                    value={scanConfig.maxLinesPerPod}
+                    onChange={e => setScanConfig(prev => ({ ...prev, maxLinesPerPod: parseInt(e.target.value) || 1000 }))}
+                    inputProps={{ min: 1, max: 10000 }}
+                    size="small"
+                    sx={{ mb: 1, width: '100%' }}
+                  />
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>Log Levels:</Typography>
+                    {['ERROR', 'WARN', 'CRITICAL', 'INFO', 'DEBUG'].map(level => (
+                      <FormControlLabel
+                        key={level}
+                        control={
+                          <Checkbox
+                            checked={scanConfig.logLevels.includes(level)}
+                            onChange={() => handleLogLevelToggle(level)}
+                          />
+                        }
+                        label={level}
+                      />
+                    ))}
+                  </Box>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2">Search Patterns:</Typography>
+                    {scanConfig.searchPatterns.map((pattern, index) => (
+                      <Chip
+                        key={index}
+                        label={pattern}
+                        onDelete={() => removeSearchPattern(index)}
+                        sx={{ mr: 1, mb: 0.5 }}
+                      />
+                    ))}
+                    <IconButton onClick={addSearchPattern} size="small"><AddIcon fontSize="small" /></IconButton>
+                  </Box>
+                  <Box sx={{ mb: 1 }}>
+                    <Typography variant="body2">Pod Labels:</Typography>
+                    {Object.entries(scanConfig.podLabels).map(([key, value]) => (
+                      <Chip
+                        key={key}
+                        label={`${key}=${value}`}
+                        onDelete={() => removePodLabel(key)}
+                        sx={{ mr: 1, mb: 0.5 }}
+                      />
+                    ))}
+                    <IconButton onClick={addPodLabel} size="small"><AddIcon fontSize="small" /></IconButton>
+                  </Box>
+                </Box>
+              </Grid>
+            </Grid>
+            <Divider sx={{ my: 2 }} />
+            <Box display="flex" gap={2}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={scanLogs}
+                disabled={scanning || !selectedCluster}
+              >
+                {scanning ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                {scanning ? 'Scanning...' : 'Scan Logs'}
+              </Button>
+              <Button variant="outlined" color="secondary" onClick={() => setShowJobForm(false)}>Cancel</Button>
+            </Box>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="scanner-config">
-        <div className="config-section">
-          <h3>Cluster Configuration</h3>
-          <div className="form-group">
-            <label>Select Cluster:</label>
-            <select 
-              value={selectedCluster} 
-              onChange={(e) => handleClusterChange(e.target.value)}
-            >
-              <option value="">Select a cluster...</option>
-              {clusters.filter(cluster => cluster.name !== '*').map(cluster => (
-                <option key={cluster.cluster} value={cluster.cluster}>
-                  {cluster.name} ({cluster.cluster})
-                </option>
-              ))}
-            </select>
-            <button onClick={loadClusters} className="refresh-btn">
-              🔄 Refresh
-            </button>
-          </div>
-        </div>
-
-        <div className="config-section">
-          <h3>Namespace Selection</h3>
-          <div className="namespace-list">
-            {selectedCluster === '' ? (
-              <div className="namespace-placeholder" style={{ color: '#888', fontStyle: 'italic', padding: '8px 0' }}>
-                Select a cluster to view namespaces.
-              </div>
-            ) : namespaces.length === 0 ? (
-              <div className="namespace-placeholder" style={{ color: '#888', fontStyle: 'italic', padding: '8px 0' }}>
-                {error && error.toLowerCase().includes('namespace') || error.toLowerCase().includes('connect') || error.toLowerCase().includes('load') ? (
-                  <>Could not connect to the cluster or fetch namespaces. Please check your cluster connectivity and try again.</>
-                ) : (
-                  <>No namespaces found for this cluster,verify your logging to k8s cluster is enabled.</>
-                )}
-              </div>
-            ) : (
-              namespaces.map(namespace => (
-                <label key={namespace} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={selectedNamespaces.includes(namespace)}
-                    onChange={() => handleNamespaceToggle(namespace)}
-                  />
-                  {namespace}
-                </label>
-              ))
+      {/* Scheduled Log Scan Jobs Section */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+            <Typography variant="h6">Scheduled Log Scan Jobs</Typography>
+            {!showJobForm && (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowJobForm(true)}>
+                Create New Job
+              </Button>
             )}
-          </div>
-        </div>
-
-        <div className="config-section">
-          <h3>Scan Configuration</h3>
-          
-          <div className="form-group">
-            <label>Time Range (minutes):</label>
-            <input
-              type="number"
-              value={scanConfig.timeRangeMinutes}
-              onChange={(e) => setScanConfig(prev => ({
-                ...prev,
-                timeRangeMinutes: parseInt(e.target.value) || 60
-              }))}
-              min="1"
-              max="1440"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Max Lines per Pod:</label>
-            <input
-              type="number"
-              value={scanConfig.maxLinesPerPod}
-              onChange={(e) => setScanConfig(prev => ({
-                ...prev,
-                maxLinesPerPod: parseInt(e.target.value) || 1000
-              }))}
-              min="1"
-              max="10000"
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Log Levels:</label>
-            <div className="log-levels">
-              {['ERROR', 'WARN', 'CRITICAL', 'INFO', 'DEBUG'].map(level => (
-                <label key={level} className="checkbox-label">
-                  <input
-                    type="checkbox"
-                    checked={scanConfig.logLevels.includes(level)}
-                    onChange={() => handleLogLevelToggle(level)}
-                  />
-                  {level}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Search Patterns:</label>
-            <div className="search-patterns">
-              {scanConfig.searchPatterns.map((pattern, index) => (
-                <div key={index} className="pattern-item">
-                  <span>{pattern}</span>
-                  <button onClick={() => removeSearchPattern(index)}>×</button>
-                </div>
-              ))}
-              <button onClick={addSearchPattern} className="add-btn">
-                + Add Pattern
-              </button>
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label>Pod Labels:</label>
-            <div className="pod-labels">
-              {Object.entries(scanConfig.podLabels).map(([key, value]) => (
-                <div key={key} className="label-item">
-                  <span>{key}={value}</span>
-                  <button onClick={() => removePodLabel(key)}>×</button>
-                </div>
-              ))}
-              <button onClick={addPodLabel} className="add-btn">
-                + Add Label
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <button 
-          onClick={scanLogs} 
-          disabled={scanning || !selectedCluster}
-          className="scan-btn"
-        >
-          {scanning ? 'Scanning...' : 'Scan Logs'}
-        </button>
-      </div>
+          </Box>
+          {jobError && <Alert severity="error" sx={{ mb: 2 }}>{jobError}</Alert>}
+          {jobLoading && <Box display="flex" alignItems="center" gap={1}><CircularProgress size={20} /> Loading jobs...</Box>}
+          <Grid container spacing={2}>
+            {Array.isArray(jobs) && jobs.length > 0 ? jobs.map(job => (
+              <Grid item xs={12} md={6} key={job.id}>
+                <Paper variant="outlined" sx={{ p: 2, mb: 1, borderLeft: '6px solid #1976d2' }}>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>{job.name || 'Untitled Job'}</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Namespace: <b>{job.namespace}</b> | Log Levels: <b>{(job.logLevels || job.log_levels || []).join(', ')}</b> | Interval: <b>{(job.interval / 60).toFixed(1)} min</b>
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Created: {new Date(job.createdAt || job.created_at).toLocaleString()} | Last Run: {job.lastRun ? new Date(job.lastRun).toLocaleString() : 'Never'}
+                      </Typography>
+                    </Box>
+                    <IconButton color="error" onClick={() => handleDeleteJob(job.id)} disabled={jobLoading} title="Delete Job">
+                      <DeleteIcon />
+                    </IconButton>
+                  </Box>
+                </Paper>
+              </Grid>
+            )) : (
+              <Grid item xs={12}><Typography color="text.secondary">No scheduled jobs found.</Typography></Grid>
+            )}
+          </Grid>
+        </CardContent>
+      </Card>
 
       {scanResults && Array.isArray(scanResults.results) ? (
         <div className="scan-results">
           <h3>Scan Results</h3>
-          {scanResults.results.length === 0 ? (
-            <div className="no-data">No log events found for this scan.</div>
-          ) : (
-            scanResults.results.map((item, idx) => (
-              <Accordion key={idx} style={{ marginBottom: 12 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 500, color: getLogLevel(item.log) ? '#007bff' : '#333', background: getLogLevel(item.log) ? LOG_LEVEL_COLORS[getLogLevel(item.log)] : undefined, padding: '2px 8px', borderRadius: 4 }}>
-                    {item.log}
-                  </span>
-                </AccordionSummary>
-                <AccordionDetails>
-                  <div style={{ marginBottom: 12 }}>
-                    <strong>Log Analysis:</strong>
-                    <AnalysisPanel data={item.analysis} label="log analysis" />
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <strong>Root Cause Prediction:</strong>
-                    <AnalysisPanel data={item.root_cause} label="root cause prediction" />
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <strong>Knowledge Base Search:</strong>
-                    <AnalysisPanel data={item.knowledge} label="knowledge base search" />
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <strong>Action Recommendations:</strong>
-                    <AnalysisPanel data={item.recommendations} label="action recommendations" />
-                  </div>
-                </AccordionDetails>
-              </Accordion>
-            ))
-          )}
+          {Array.isArray(scanResults?.results) ? (
+            scanResults.results.length === 0 ? (
+              <div className="no-data">No log events found for this scan.</div>
+            ) : (
+              Array.isArray(scanResults.results) && scanResults.results.map((item, idx) => (
+                <Accordion key={idx} style={{ marginBottom: 12 }}>
+                  <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 500, color: getLogLevel(item.log) ? '#007bff' : '#333', background: getLogLevel(item.log) ? LOG_LEVEL_COLORS[getLogLevel(item.log)] : undefined, padding: '2px 8px', borderRadius: 4 }}>
+                      {item.log}
+                    </span>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Log Analysis:</strong>
+                      <AnalysisPanel data={item.analysis} label="log analysis" />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Root Cause Prediction:</strong>
+                      <AnalysisPanel data={item.root_cause} label="root cause prediction" />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Knowledge Base Search:</strong>
+                      <AnalysisPanel data={item.knowledge} label="knowledge base search" />
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Action Recommendations:</strong>
+                      <AnalysisPanel data={item.recommendations} label="action recommendations" />
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              ))
+            )
+          ) : null}
         </div>
       ) : scanResults && (
         // fallback: old structure (if present)
@@ -453,7 +573,7 @@ const K8sLogScanner = () => {
             <div className="scan-errors">
               <h4>Errors:</h4>
               <ul>
-                {scanResults.errors.map((error, index) => (
+                {Array.isArray(scanResults.errors) && scanResults.errors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
               </ul>
@@ -464,7 +584,7 @@ const K8sLogScanner = () => {
             <div className="pods-scanned">
               <h4>Pods Scanned:</h4>
               <ul>
-                {scanResults.pods_scanned.map((pod, index) => (
+                {Array.isArray(scanResults.pods_scanned) && scanResults.pods_scanned.map((pod, index) => (
                   <li key={index}>{pod}</li>
                 ))}
               </ul>
@@ -515,7 +635,7 @@ const K8sLogScanner = () => {
           ) : null}
         </div>
       )}
-    </div>
+    </Box>
   );
 };
 

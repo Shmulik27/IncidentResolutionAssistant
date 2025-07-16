@@ -71,8 +71,42 @@ func main() {
 	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces))
 	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs))
 
-	// Example protected endpoint
+	// Protected endpoints (require Firebase Auth)
 	http.HandleFunc("/analyze", withCORS(FirebaseAuthMiddleware(handlers.HandleAnalyze)))
+
+	// Log scan job management endpoints (all protected)
+	http.HandleFunc("/api/log-scan-jobs", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			handlers.HandleCreateLogScanJob(w, r)
+		case http.MethodGet:
+			handlers.HandleListLogScanJobs(w, r)
+		case http.MethodOptions:
+			w.WriteHeader(http.StatusOK)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})))
+	http.HandleFunc("/api/log-scan-jobs/", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			handlers.HandleDeleteLogScanJob(w, r)
+			return
+		} else if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})))
+	http.HandleFunc("/api/incidents/recent", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.HandleGetRecentIncidents(w, r)
+			return
+		} else if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})))
 
 	log.Println("Go backend listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))

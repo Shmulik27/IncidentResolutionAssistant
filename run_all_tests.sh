@@ -10,17 +10,24 @@ function run_test() {
   eval "$2"
 }
 
-run_test "Python Log Analyzer Tests" "cd python-services/log_analyzer && pytest && cd - > /dev/null"
-run_test "Python Root Cause Predictor Tests" "cd python-services/root_cause_predictor && pytest && cd - > /dev/null"
-run_test "Python Action Recommender Tests" "cd python-services/action_recommender && pytest && cd - > /dev/null"
-run_test "Python Knowledge Base/Vector Search Tests" "cd python-services/knowledge_base && pytest && cd - > /dev/null"
-run_test "Go Backend Tests" "cd go-backend && go test -v && cd - > /dev/null"
+# Python microservices
+run_test "Python Log Analyzer Tests" "cd backend/python-services/log_analyzer && pytest && cd - > /dev/null"
+run_test "Python Root Cause Predictor Tests" "cd backend/python-services/root_cause_predictor && pytest && cd - > /dev/null"
+run_test "Python Action Recommender Tests" "cd backend/python-services/action_recommender && pytest && cd - > /dev/null"
+run_test "Python Knowledge Base/Vector Search Tests" "cd backend/python-services/knowledge_base && pytest && cd - > /dev/null"
+run_test "Python Incident Integrator Tests" "cd backend/python-services/incident_integrator && pytest && cd - > /dev/null"
 
-# End-to-end tests (assumes services are running)
-echo -e "\n${GREEN}===== End-to-End Tests =====${NC}"
+# Go backend (unit, integration, E2E)
+run_test "Go Backend Tests (unit, integration, E2E)" "cd backend/go-backend && go test -v ./... && cd - > /dev/null"
+
+# Frontend unit/integration tests
+run_test "Frontend Unit/Integration Tests" "cd frontend && npm install && npm test -- --watchAll=false && cd - > /dev/null"
+
+# Frontend Cypress E2E tests (assumes frontend and backend are running)
+run_test "Frontend Cypress E2E Tests" "cd frontend && npx cypress install && npx cypress run && cd - > /dev/null"
+
+# End-to-end Python test (legacy)
+echo -e "\n${GREEN}===== Python E2E Test (test_e2e.py) =====${NC}"
 python3 test_e2e.py
-
-echo -e "\n${GREEN}===== Python Incident Integrator Tests =====${NC}"
-cd python-services/incident_integrator && pytest && cd - > /dev/null
 
 echo -e "\n${GREEN}ALL TESTS PASSED!${NC}" 

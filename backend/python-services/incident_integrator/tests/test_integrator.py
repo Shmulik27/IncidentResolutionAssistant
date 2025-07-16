@@ -1,8 +1,10 @@
+import sys
 import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
-from .integrator import app
+from app.api import app
 
 client = TestClient(app)
 
@@ -16,10 +18,10 @@ def set_slack_env(monkeypatch):
     monkeypatch.setenv('JIRA_USER', 'dummy')
     monkeypatch.setenv('JIRA_TOKEN', 'dummy')
 
-@patch('incident_integrator.integrator.requests.post')
-@patch('incident_integrator.integrator.get_jira_client')
-@patch('incident_integrator.integrator.get_github_repo')
-def test_slack_notification_on_new_incident(mock_github, mock_jira, mock_post):
+@patch('app.api.get_github_repo')
+@patch('app.api.get_jira_client')
+@patch('app.logic.requests.post')
+def test_slack_notification_on_new_incident(mock_post, mock_jira, mock_github):
     # Mock Jira client
     mock_jira_instance = MagicMock()
     mock_jira.return_value = mock_jira_instance
@@ -50,9 +52,9 @@ def test_slack_notification_on_new_incident(mock_github, mock_jira, mock_post):
     assert 'devuser' in kwargs['json']['text']
     assert 'PROJ-123' in kwargs['json']['text']
 
-@patch('incident_integrator.integrator.requests.post')
-@patch('incident_integrator.integrator.get_jira_client')
-def test_slack_notification_on_incident_resolved(mock_jira, mock_post):
+@patch('app.api.get_jira_client')
+@patch('app.logic.requests.post')
+def test_slack_notification_on_incident_resolved(mock_post, mock_jira):
     # Mock Jira client
     mock_jira_instance = MagicMock()
     mock_jira.return_value = mock_jira_instance
@@ -70,7 +72,7 @@ def test_slack_notification_on_incident_resolved(mock_jira, mock_post):
         }
     }
     headers = {"x-hub-signature-256": "sha256=validsig"}
-    with patch('incident_integrator.integrator.hmac.compare_digest', return_value=True):
+    with patch('app.logic.hmac.compare_digest', return_value=True):
         response = client.post("/github-webhook", json=payload, headers=headers)
     assert response.status_code == 200
     assert mock_post.called

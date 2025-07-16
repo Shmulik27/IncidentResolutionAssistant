@@ -1,19 +1,20 @@
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import unittest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.api import app
-from github import Github
-from jira import JIRA
 
 class TestIntegratorIntegration(unittest.TestCase):
     def setUp(self):
         self.client = TestClient(app)
 
-    @patch("app.api.Github")
-    @patch("app.api.JIRA")
+    @patch("app.api.get_github_repo")
+    @patch("app.api.get_jira_client")
     def test_incident_endpoint(self, mock_jira, mock_github):
         mock_repo = MagicMock()
-        mock_github.return_value.get_repo.return_value = mock_repo
+        mock_github.return_value = mock_repo
         mock_repo.get_blame.return_value = []
         mock_repo.owner.login = "fallback"
         mock_jira.return_value.search_issues.return_value = []

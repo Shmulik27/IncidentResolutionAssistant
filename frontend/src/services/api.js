@@ -132,5 +132,43 @@ export const api = {
       console.error('Error fetching K8s namespaces:', error);
       throw new Error('Failed to fetch K8s namespaces');
     }
+  },
+
+  // Log Scan Job Management
+  async createLogScanJob(job) {
+    const token = localStorage.getItem('firebaseToken');
+    const response = await axios.post(
+      `${API_BASE_URL}/api/log-scan-jobs`,
+      job,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    return response.data;
+  },
+
+  async listLogScanJobs() {
+    const token = localStorage.getItem('firebaseToken');
+    const response = await axios.get(
+      `${API_BASE_URL}/api/log-scan-jobs`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    return response.data;
+  },
+
+  async deleteLogScanJob(jobId) {
+    const token = localStorage.getItem('firebaseToken');
+    const response = await axios.delete(
+      `${API_BASE_URL}/api/log-scan-jobs/${jobId}`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    return response.data;
+  },
+
+  async getRecentIncidents() {
+    const token = localStorage.getItem('firebaseToken');
+    const response = await axios.get(
+      `${API_BASE_URL}/api/incidents/recent`,
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
+    return response.data;
   }
 }; 
