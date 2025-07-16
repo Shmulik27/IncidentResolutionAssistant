@@ -8,6 +8,7 @@ import (
 
 	"bytes"
 	"io"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -107,6 +108,11 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var logs []string
+	// Prepare log level filter
+	logLevels := make(map[string]bool)
+	for _, lvl := range req.LogLevels {
+		logLevels[strings.ToUpper(lvl)] = true
+	}
 	for _, pod := range pods.Items {
 		for _, c := range pod.Spec.Containers {
 			logOpts := &corev1.PodLogOptions{Container: c.Name, TailLines: int64Ptr(100)}
@@ -118,7 +124,15 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 			defer stream.Close()
 			b, err := io.ReadAll(stream)
 			if err == nil {
-				logs = append(logs, string(b))
+				for _, line := range strings.Split(string(b), "\n") {
+					// Only include lines that match one of the requested log levels
+					for lvl := range logLevels {
+						if strings.Contains(line, lvl) {
+							logs = append(logs, line)
+							break
+						}
+					}
+				}
 			}
 		}
 	}
@@ -128,67 +142,75 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Log Analyzer
-	analyzerURL := os.Getenv("LOG_ANALYZER_URL")
-	analyzeReq := map[string]interface{}{"logs": logs}
-	analyzeBody, _ := json.Marshal(analyzeReq)
-	analyzeResp, err := http.Post(analyzerURL, "application/json", bytes.NewReader(analyzeBody))
-	if err != nil {
-		http.Error(w, "Failed to contact log analyzer", http.StatusInternalServerError)
-		return
-	}
-	defer analyzeResp.Body.Close()
-	var analyzeResult map[string]interface{}
-	json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult)
+	// For each log line, run the full analysis flow
+	var results []map[string]interface{}
+	for _, logLine := range logs {
+		// 1. Log Analyzer
+		analyzerURL := os.Getenv("LOG_ANALYZER_URL")
+		analyzeReq := map[string]interface{}{"logs": []string{logLine}}
+		analyzeBody, _ := json.Marshal(analyzeReq)
+		analyzeResp, err := http.Post(analyzerURL, "application/json", bytes.NewReader(analyzeBody))
+		var analyzeResult map[string]interface{}
+		if err == nil {
+			defer analyzeResp.Body.Close()
+			json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult)
+		} else {
+			analyzeResult = map[string]interface{}{"detail": "Not Found"}
+		}
 
-	// 2. Root Cause Predictor
-	predictorURL := os.Getenv("ROOT_CAUSE_PREDICTOR_URL")
-	predictBody, _ := json.Marshal(analyzeReq)
-	predictResp, err := http.Post(predictorURL, "application/json", bytes.NewReader(predictBody))
-	if err != nil {
-		http.Error(w, "Failed to contact root cause predictor", http.StatusInternalServerError)
-		return
-	}
-	defer predictResp.Body.Close()
-	var predictResult map[string]interface{}
-	json.NewDecoder(predictResp.Body).Decode(&predictResult)
+		// 2. Root Cause Predictor
+		predictorURL := os.Getenv("ROOT_CAUSE_PREDICTOR_URL")
+		predictBody, _ := json.Marshal(analyzeReq)
+		predictResp, err := http.Post(predictorURL, "application/json", bytes.NewReader(predictBody))
+		var predictResult map[string]interface{}
+		if err == nil {
+			defer predictResp.Body.Close()
+			json.NewDecoder(predictResp.Body).Decode(&predictResult)
+		} else {
+			predictResult = map[string]interface{}{"detail": "Not Found"}
+		}
 
-	// 3. Knowledge Base Search
-	kbURL := os.Getenv("KNOWLEDGE_BASE_URL")
-	kbReq := map[string]interface{}{"query": predictResult["root_cause"]}
-	kbBody, _ := json.Marshal(kbReq)
-	kbResp, err := http.Post(kbURL, "application/json", bytes.NewReader(kbBody))
-	if err != nil {
-		http.Error(w, "Failed to contact knowledge base", http.StatusInternalServerError)
-		return
-	}
-	defer kbResp.Body.Close()
-	var kbResult map[string]interface{}
-	json.NewDecoder(kbResp.Body).Decode(&kbResult)
+		// 3. Knowledge Base Search
+		kbURL := os.Getenv("KNOWLEDGE_BASE_URL")
+		kbReq := map[string]interface{}{"query": predictResult["root_cause"]}
+		kbBody, _ := json.Marshal(kbReq)
+		kbResp, err := http.Post(kbURL, "application/json", bytes.NewReader(kbBody))
+		var kbResult map[string]interface{}
+		if err == nil {
+			defer kbResp.Body.Close()
+			json.NewDecoder(kbResp.Body).Decode(&kbResult)
+		} else {
+			kbResult = map[string]interface{}{"detail": "Not Found"}
+		}
 
-	// 4. Action Recommender
-	recommenderURL := os.Getenv("ACTION_RECOMMENDER_URL")
-	recReq := map[string]interface{}{"root_cause": predictResult["root_cause"]}
-	recBody, _ := json.Marshal(recReq)
-	recResp, err := http.Post(recommenderURL, "application/json", bytes.NewReader(recBody))
-	if err != nil {
-		http.Error(w, "Failed to contact action recommender", http.StatusInternalServerError)
-		return
-	}
-	defer recResp.Body.Close()
-	var recResult map[string]interface{}
-	json.NewDecoder(recResp.Body).Decode(&recResult)
+		// 4. Action Recommender
+		recommenderURL := os.Getenv("ACTION_RECOMMENDER_URL")
+		recReq := map[string]interface{}{"root_cause": predictResult["root_cause"]}
+		recBody, _ := json.Marshal(recReq)
+		recResp, err := http.Post(recommenderURL, "application/json", bytes.NewReader(recBody))
+		var recResult map[string]interface{}
+		if err == nil {
+			defer recResp.Body.Close()
+			json.NewDecoder(recResp.Body).Decode(&recResult)
+		} else {
+			recResult = map[string]interface{}{"detail": "Not Found"}
+		}
 
-	// Aggregate and return
-	resp := map[string]interface{}{
-		"logs":            logs,
-		"analysis":        analyzeResult,
-		"root_cause":      predictResult,
-		"knowledge":       kbResult,
-		"recommendations": recResult,
+		// Aggregate per log line
+		result := map[string]interface{}{
+			"log":             logLine,
+			"analysis":        analyzeResult,
+			"root_cause":      predictResult,
+			"knowledge":       kbResult,
+			"recommendations": recResult,
+		}
+		results = append(results, result)
 	}
+
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"results": results,
+	})
 }
 
 func int64Ptr(i int64) *int64 { return &i }

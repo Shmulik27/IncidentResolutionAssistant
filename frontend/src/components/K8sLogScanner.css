@@ -321,6 +321,90 @@
   background: #e3f2fd;
 }
 
+/* Log level highlighting */
+.log-line.log-level-error {
+  background: #ffcccc !important;
+  border-left: 4px solid #dc3545 !important;
+}
+.log-line.log-level-warn {
+  background: #fff3cd !important;
+  border-left: 4px solid #ffc107 !important;
+}
+.log-line.log-level-info {
+  background: #e3f2fd !important;
+  border-left: 4px solid #007bff !important;
+}
+.log-line.log-level-debug {
+  background: #f0f0f0 !important;
+  border-left: 4px solid #6c757d !important;
+}
+.log-line.log-level-critical {
+  background: #ffb3b3 !important;
+  border-left: 4px solid #b71c1c !important;
+}
+
+/* Line numbers */
+.log-line-number {
+  color: #888;
+  min-width: 36px;
+  text-align: right;
+  margin-right: 10px;
+  user-select: none;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+/* Sticky log header */
+.logs-header-sticky {
+  position: sticky;
+  top: 0;
+  background: #495057;
+  color: white;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #ddd;
+  border-radius: 5px 5px 0 0;
+}
+
+/* Filter input */
+.log-filter-input {
+  margin-left: 16px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 12px;
+  outline: none;
+  transition: border 0.2s;
+}
+.log-filter-input:focus {
+  border: 1.5px solid #007bff;
+}
+
+/* Copy and show more buttons */
+.copy-logs-btn, .show-more-btn {
+  margin-left: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: none;
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+.copy-logs-btn:hover {
+  background: #0056b3;
+}
+.show-more-btn {
+  background: #28a745;
+}
+.show-more-btn:hover {
+  background: #218838;
+}
+
+/* Responsive tweaks for log controls */
 @media (max-width: 768px) {
   .k8s-log-scanner {
     padding: 15px;
@@ -345,5 +429,15 @@
   
   .pods-scanned ul {
     grid-template-columns: 1fr;
+  }
+  .logs-header-sticky {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 5px;
+  }
+  .log-filter-input, .copy-logs-btn, .show-more-btn {
+    margin-left: 0;
+    margin-top: 6px;
   }
 } 
