@@ -15,6 +15,10 @@
          - ~/.aws:/root/.aws:ro
        environment:
          - KUBECONFIG=/root/.kube/config
+         - LOG_ANALYZER_URL=http://log-analyzer:8000
+         - ROOT_CAUSE_PREDICTOR_URL=http://root-cause-predictor:8000
+         - KNOWLEDGE_BASE_URL=http://knowledge-base:8000
+         - ACTION_RECOMMENDER_URL=http://action-recommender:8000
 
      log-analyzer:
        build:

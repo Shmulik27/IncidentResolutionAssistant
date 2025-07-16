@@ -295,11 +295,11 @@ const K8sLogScanner = () => {
           <div className="results-summary">
             <p><strong>Cluster:</strong> {scanResults.cluster_name}</p>
             <p><strong>Total Logs:</strong> {scanResults.total_logs}</p>
-            <p><strong>Pods Scanned:</strong> {scanResults.pods_scanned.length}</p>
-            <p><strong>Scan Time:</strong> {new Date(scanResults.scan_time).toLocaleString()}</p>
+            <p><strong>Pods Scanned:</strong> {Array.isArray(scanResults.pods_scanned) ? scanResults.pods_scanned.length : 0}</p>
+            <p><strong>Scan Time:</strong> {scanResults.scan_time ? new Date(scanResults.scan_time).toLocaleString() : ''}</p>
           </div>
 
-          {scanResults.errors.length > 0 && (
+          {Array.isArray(scanResults.errors) && scanResults.errors.length > 0 && (
             <div className="scan-errors">
               <h4>Errors:</h4>
               <ul>
@@ -310,7 +310,7 @@ const K8sLogScanner = () => {
             </div>
           )}
 
-          {scanResults.pods_scanned.length > 0 && (
+          {Array.isArray(scanResults.pods_scanned) && scanResults.pods_scanned.length > 0 && (
             <div className="pods-scanned">
               <h4>Pods Scanned:</h4>
               <ul>
@@ -321,7 +321,7 @@ const K8sLogScanner = () => {
             </div>
           )}
 
-          {scanResults.logs.length > 0 && (
+          {Array.isArray(scanResults.logs) && scanResults.logs.length > 0 && (
             <div className="logs-display">
               <h4>Logs ({scanResults.logs.length} lines):</h4>
               <div className="logs-container">

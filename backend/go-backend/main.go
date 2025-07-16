@@ -65,6 +65,7 @@ func main() {
 	http.Handle("/metrics", withCORS(promhttp.Handler().ServeHTTP))
 	http.HandleFunc("/metrics/stream", withCORS(handlers.MetricsStreamHandler))
 	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces))
+	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs))
 
 	// Example protected endpoint
 	http.HandleFunc("/analyze", withCORS(FirebaseAuthMiddleware(handlers.HandleAnalyze)))
