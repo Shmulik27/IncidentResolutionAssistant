@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation, Link as RouterLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -43,6 +43,17 @@ import ApplicationMonitoring from './components/ApplicationMonitoring';
 import ErrorBoundary from './components/ErrorBoundary';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
+// Firebase imports
+import { initializeApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyDVfdoB6MBHmRt6tR6FUwwLb_Zow8dmUYQ',
+  authDomain: 'incident-assistant-frontend.firebaseapp.com',
+  // ...other config from Firebase console
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
 
 const drawerWidth = 240;
 
@@ -65,6 +76,22 @@ function AppContent({ setMode, mode }) {
   const [notification, setNotification] = React.useState({ open: false, message: '', severity: 'info' });
   const notify = (message, severity = 'info') => setNotification({ open: true, message, severity });
   const handleClose = () => setNotification(n => ({ ...n, open: false }));
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        const token = await firebaseUser.getIdToken();
+        localStorage.setItem('firebaseToken', token);
+      } else {
+        setUser(null);
+        localStorage.removeItem('firebaseToken');
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Helper to flatten menuItems for lookup
   const flattenMenu = (items, parent = null) => {
@@ -79,67 +106,28 @@ function AppContent({ setMode, mode }) {
   };
   const flatMenu = flattenMenu(menuItems);
 
-  // Build breadcrumbs from current location
-  const getBreadcrumbs = () => {
-    const pathnames = location.pathname.split('/').filter(Boolean);
-    let currPath = '';
-    const crumbs = [];
-    for (let i = 0; i < pathnames.length; i++) {
-      currPath += '/' + pathnames[i];
-      // Find menu item for this path
-      const match = flatMenu.find(item => item.path === currPath);
-      if (match) {
-        crumbs.push({ text: match.text, path: match.path });
-      }
+  const handleLogin = async () => {
+    setAuthLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      notify('Login failed: ' + err.message, 'error');
+    } finally {
+      setAuthLoading(false);
     }
-    return crumbs;
-  };
-  const breadcrumbs = getBreadcrumbs();
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
   };
 
-  const handleMenuExpand = (item) => {
-    setExpandedMenus((prev) => ({
-      ...prev,
-      [item.text]: !prev[item.text]
-    }));
+  const handleLogout = async () => {
+    setAuthLoading(true);
+    try {
+      await signOut(auth);
+    } catch (err) {
+      notify('Logout failed: ' + err.message, 'error');
+    } finally {
+      setAuthLoading(false);
+    }
   };
-
-  const renderMenuItems = (items) => (
-    items.map((item) => (
-      item.children ? (
-        <React.Fragment key={item.text}>
-          <ListItem 
-            button
-            onClick={() => handleMenuExpand(item)}
-          >
-            <ListItemIcon>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.text} />
-            {expandedMenus[item.text] ? <ExpandLess /> : <ExpandMore />}
-          </ListItem>
-          <Collapse in={expandedMenus[item.text]} timeout="auto" unmountOnExit>
-            <List component="div" disablePadding sx={{ pl: 4 }}>
-              {renderMenuItems(item.children)}
-            </List>
-          </Collapse>
-        </React.Fragment>
-      ) : (
-        <ListItem 
-          button 
-          key={item.text}
-          component="a"
-          href={item.path}
-          onClick={() => isMobile && setMobileOpen(false)}
-          sx={item.path.startsWith('/dashboard/') ? { pl: 4 } : {}}
-        >
-          <ListItemIcon>{item.icon}</ListItemIcon>
-          <ListItemText primary={item.text} />
-        </ListItem>
-      )
-    ))
-  );
 
   const drawer = (
     <Box>
@@ -149,11 +137,29 @@ function AppContent({ setMode, mode }) {
         </Typography>
       </Toolbar>
       <List>
-        {renderMenuItems(menuItems)}
+        {menuItems.map((item) => (
+          <ListItem button key={item.text} component={RouterLink} to={item.path} selected={location.pathname === item.path}>
+            <ListItemIcon>{item.icon}</ListItemIcon>
+            <ListItemText primary={item.text} />
+          </ListItem>
+        ))}
       </List>
     </Box>
   );
 
+  // If not authenticated, show login screen
+  if (!user) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+        <Typography variant="h4" sx={{ mb: 2 }}>Incident Assistant Login</Typography>
+        <button onClick={handleLogin} disabled={authLoading} style={{ fontSize: 18, padding: '12px 32px', borderRadius: 6, background: '#4285F4', color: 'white', border: 'none', cursor: 'pointer' }}>
+          {authLoading ? 'Redirecting...' : 'Login with Google'}
+        </button>
+      </Box>
+    );
+  }
+
+  // Main app UI when authenticated
   return (
     <NotificationContext.Provider value={{ notify }}>
       <ErrorBoundary>
@@ -172,7 +178,7 @@ function AppContent({ setMode, mode }) {
                     color="inherit"
                     aria-label="open drawer"
                     edge="start"
-                    onClick={handleDrawerToggle}
+                    onClick={() => setMobileOpen(!mobileOpen)}
                     sx={{ mr: 2, display: { md: 'none' } }}
                   >
                     <MenuIcon />
@@ -181,64 +187,32 @@ function AppContent({ setMode, mode }) {
                     AI-Powered Incident Resolution Assistant
                   </Typography>
                 </Box>
-                <IconButton sx={{ ml: 1 }} color="inherit" onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
-                  {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
-                </IconButton>
+                <Box>
+                  <IconButton sx={{ ml: 1 }} color="inherit" onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}>
+                    {mode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                  </IconButton>
+                  <button onClick={handleLogout} style={{ marginLeft: 16, fontSize: 16, padding: '6px 18px', borderRadius: 4, background: '#eee', border: 'none', cursor: 'pointer' }}>Logout</button>
+                </Box>
               </Box>
-              <Breadcrumbs aria-label="breadcrumb" sx={{ mt: 1 }}>
-                {breadcrumbs.map((crumb, idx) => (
-                  idx < breadcrumbs.length - 1 ? (
-                    <MuiLink
-                      key={crumb.path}
-                      component={RouterLink}
-                      to={crumb.path}
-                      underline="hover"
-                      color="inherit"
-                    >
-                      {crumb.text}
-                    </MuiLink>
-                  ) : (
-                    <Typography key={crumb.path} color="text.primary">
-                      {crumb.text}
-                    </Typography>
-                  )
-                ))}
-              </Breadcrumbs>
             </Toolbar>
           </AppBar>
-
-          <Box
-            component="nav"
-            sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+          <Drawer
+            variant={isMobile ? 'temporary' : 'permanent'}
+            open={isMobile ? mobileOpen : true}
+            onClose={() => setMobileOpen(false)}
+            ModalProps={{ keepMounted: true }}
+            sx={{
+              width: drawerWidth,
+              flexShrink: 0,
+              '& .MuiDrawer-paper': {
+                width: drawerWidth,
+                boxSizing: 'border-box',
+              },
+              display: { xs: 'block', md: 'block' },
+            }}
           >
-            {/* Mobile drawer */}
-            <Drawer
-              variant="temporary"
-              open={mobileOpen}
-              onClose={handleDrawerToggle}
-              ModalProps={{
-                keepMounted: true, // Better open performance on mobile.
-              }}
-              sx={{
-                display: { xs: 'block', md: 'none' },
-                '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-              }}
-            >
-              {drawer}
-            </Drawer>
-            {/* Desktop drawer */}
-            <Drawer
-              variant="permanent"
-              sx={{
-                display: { xs: 'none', md: 'block' },
-                '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
-              }}
-              open
-            >
-              {drawer}
-            </Drawer>
-          </Box>
-
+            {drawer}
+          </Drawer>
           <Box
             component="main"
             sx={{
@@ -277,4 +251,4 @@ function App({ setMode, mode }) {
 }
 
 export { NotificationContext };
-export default App; 
+export default App;

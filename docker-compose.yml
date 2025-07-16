@@ -9,6 +9,12 @@
          - root-cause-predictor
          - knowledge-base
          - action-recommender
+       volumes:
+         - ./backend/go-backend/serviceAccountKey.json:/app/serviceAccountKey.json
+         - ~/.kube/config:/root/.kube/config:ro
+         - ~/.aws:/root/.aws:ro
+       environment:
+         - KUBECONFIG=/root/.kube/config
 
      log-analyzer:
        build:

@@ -39,8 +39,13 @@ export const api = {
   },
 
   // Incident analysis
-  async analyzeIncident(logs) {
-    const response = await axios.post(`${API_BASE_URL}/analyze`, { logs });
+  async analyzeIncident(logLines) {
+    const token = localStorage.getItem('firebaseToken');
+    const response = await axios.post(
+      `${API_BASE_URL}/analyze`,
+      { logs: logLines },
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    );
     return response.data;
   },
 
