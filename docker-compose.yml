@@ -10,11 +10,12 @@
          - knowledge-base
          - action-recommender
        volumes:
-         - ./backend/go-backend/serviceAccountKey.json:/app/serviceAccountKey.json
+         - ~/secrets/serviceAccountKey.json:/run/secrets/serviceAccountKey.json:ro
          - ~/.kube/config:/root/.kube/config:ro
          - ~/.aws:/root/.aws:ro
        environment:
          - KUBECONFIG=/root/.kube/config
+         - GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/serviceAccountKey.json
          - LOG_ANALYZER_URL=http://log-analyzer:8000/analyze
          - ROOT_CAUSE_PREDICTOR_URL=http://root-cause-predictor:8000/predict
          - KNOWLEDGE_BASE_URL=http://knowledge-base:8000/search

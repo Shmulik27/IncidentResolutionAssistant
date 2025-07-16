@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 
+	"os"
+
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	firebase "firebase.google.com/go/v4"
@@ -18,7 +20,8 @@ import (
 var firebaseAuth *auth.Client
 
 func InitFirebase() {
-	app, err := firebase.NewApp(context.Background(), nil, option.WithCredentialsFile("serviceAccountKey.json"))
+	credPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	app, err := firebase.NewApp(context.Background(), nil, option.WithCredentialsFile(credPath))
 	if err != nil {
 		log.Fatalf("Failed to initialize Firebase: %v", err)
 	}
