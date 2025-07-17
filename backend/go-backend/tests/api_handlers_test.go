@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"backend/go-backend/handlers"
+	"backend/go-backend/services/jobs"
 	testhelpers "backend/go-backend/testhelpers"
 	"backend/go-backend/utils"
 )
@@ -20,7 +21,7 @@ func TestJobAPIHandlers(t *testing.T) {
 	utils.IncidentsFile = "test_incidents_data.json"
 	defer os.Remove(utils.IncidentsFile)
 
-	jobService := &handlers.DefaultJobService{}
+	jobService := &jobs.DefaultJobService{}
 
 	// Test create job
 	jobReq := map[string]interface{}{

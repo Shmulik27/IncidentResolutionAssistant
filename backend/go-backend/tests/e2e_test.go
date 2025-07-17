@@ -3,6 +3,7 @@ package tests
 import (
 	"backend/go-backend/handlers"
 	"backend/go-backend/models"
+	"backend/go-backend/services/jobs"
 	testhelpers "backend/go-backend/testhelpers"
 	"backend/go-backend/utils"
 	"bytes"
@@ -55,7 +56,7 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 	defer os.Remove(utils.JobsFile)
 	defer os.Remove(utils.IncidentsFile)
 
-	jobService := &handlers.DefaultJobService{}
+	jobService := &jobs.DefaultJobService{}
 
 	// Patch RunLogScanJob to always return a test incident
 	orig := utils.RunLogScanJob

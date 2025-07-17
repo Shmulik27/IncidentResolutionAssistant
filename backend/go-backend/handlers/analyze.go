@@ -6,25 +6,11 @@ import (
 
 	"backend/go-backend/logger"
 	"backend/go-backend/models"
+	"backend/go-backend/services/analyze"
 )
 
-// AnalyzeService abstracts log analysis operations for handlers
-type AnalyzeService interface {
-	AnalyzeLog(req models.LogRequest) (map[string]interface{}, error)
-}
-
-// DefaultAnalyzeService implements AnalyzeService using current logic
-// (for backward compatibility; refactor internals as needed)
-type DefaultAnalyzeService struct{}
-
-// AnalyzeLog performs log analysis for the given request
-func (s DefaultAnalyzeService) AnalyzeLog(req models.LogRequest) (map[string]interface{}, error) {
-	// TODO: Replace with real analysis logic or microservice call
-	return map[string]interface{}{"result": "ok"}, nil
-}
-
 // Refactored handler: injects AnalyzeService
-func HandleAnalyze(analyzeService AnalyzeService) http.HandlerFunc {
+func HandleAnalyze(analyzeService analyze.AnalyzeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Analyze] Analyze endpoint called from ", r.RemoteAddr)
 		var req models.LogRequest
