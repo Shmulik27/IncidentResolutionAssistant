@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 
 	"os"
@@ -14,6 +13,7 @@ import (
 	"google.golang.org/api/option"
 
 	"backend/go-backend/handlers"
+	"backend/go-backend/logger"
 	"backend/go-backend/middleware"
 )
 
@@ -24,11 +24,11 @@ func InitFirebase() {
 	credPath := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 	app, err := firebase.NewApp(context.Background(), nil, option.WithCredentialsFile(credPath))
 	if err != nil {
-		log.Fatalf("Failed to initialize Firebase: %v", err)
+		logger.Logger.Fatalf("Failed to initialize Firebase: %v", err)
 	}
 	firebaseAuth, err = app.Auth(context.Background())
 	if err != nil {
-		log.Fatalf("Failed to initialize Firebase Auth: %v", err)
+		logger.Logger.Fatalf("Failed to initialize Firebase Auth: %v", err)
 	}
 }
 
@@ -69,6 +69,8 @@ func withCORS(handler http.HandlerFunc) http.HandlerFunc {
 }
 
 func main() {
+	logger.Init()
+	logger.Logger.Info("[Main] Initializing backend...")
 	InitFirebase()
 
 	// Public endpoints
@@ -119,6 +121,6 @@ func main() {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})))
 
-	log.Println("Go backend listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	logger.Logger.Info("Go backend listening on :8080")
+	logger.Logger.Fatal(http.ListenAndServe(":8080", nil))
 }

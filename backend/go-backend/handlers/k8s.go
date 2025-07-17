@@ -15,9 +15,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	"backend/go-backend/logger"
 )
 
 func HandleK8sNamespaces(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[K8s] HandleK8sNamespaces called from ", r.RemoteAddr)
 	var config *rest.Config
 	var err error
 
@@ -31,6 +34,7 @@ func HandleK8sNamespaces(w http.ResponseWriter, r *http.Request) {
 		}
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
+			logger.Logger.Error("[K8s] Failed to load kube config: ", err)
 			http.Error(w, "Failed to load kube config", http.StatusInternalServerError)
 			return
 		}
@@ -38,12 +42,14 @@ func HandleK8sNamespaces(w http.ResponseWriter, r *http.Request) {
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to create k8s client: ", err)
 		http.Error(w, "Failed to create k8s client", http.StatusInternalServerError)
 		return
 	}
 
 	nsList, err := clientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to list namespaces: ", err)
 		http.Error(w, "Failed to list namespaces", http.StatusInternalServerError)
 		return
 	}
@@ -52,12 +58,14 @@ func HandleK8sNamespaces(w http.ResponseWriter, r *http.Request) {
 	for _, ns := range nsList.Items {
 		namespaces = append(namespaces, ns.Name)
 	}
+	logger.Logger.WithField("namespaces", namespaces).Info("[K8s] Found namespaces")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string][]string{"namespaces": namespaces})
 }
 
 func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[K8s] HandleScanK8sLogs called from ", r.RemoteAddr)
 	w.Header().Set("Content-Type", "application/json")
 
 	// Parse request body for frontend scanRequest shape
@@ -71,10 +79,12 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 		MaxLinesPerPod   int                    `json:"max_lines_per_pod"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Logger.Warn("[K8s] Invalid scan request: ", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
 	if len(req.Namespaces) == 0 || req.Namespaces[0] == "" {
+		logger.Logger.Warn("[K8s] Missing namespace in scan request")
 		http.Error(w, "Missing namespace", http.StatusBadRequest)
 		return
 	}
@@ -85,18 +95,21 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 	var err error
 	config, err = rest.InClusterConfig()
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to load kube config: ", err)
 		kubeconfig := os.Getenv("KUBECONFIG")
 		if kubeconfig == "" {
 			kubeconfig = os.ExpandEnv("$HOME/.kube/config")
 		}
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
+			logger.Logger.Error("[K8s] Failed to load kube config: ", err)
 			http.Error(w, "Failed to load kube config", http.StatusInternalServerError)
 			return
 		}
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to create k8s client: ", err)
 		http.Error(w, "Failed to create k8s client", http.StatusInternalServerError)
 		return
 	}
@@ -104,9 +117,11 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 	// Fetch logs from all pods in the namespace
 	pods, err := clientset.CoreV1().Pods(namespace).List(r.Context(), metav1.ListOptions{})
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to list pods: ", err)
 		http.Error(w, "Failed to list pods", http.StatusInternalServerError)
 		return
 	}
+	logger.Logger.WithField("pods", len(pods.Items)).Info("[K8s] Found pods")
 	var logs []string
 	// Prepare log level filter
 	logLevels := make(map[string]bool)
@@ -155,6 +170,7 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 			defer analyzeResp.Body.Close()
 			json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult)
 		} else {
+			logger.Logger.Warn("[K8s] Log Analyzer call failed: ", err)
 			analyzeResult = map[string]interface{}{"detail": "Not Found"}
 		}
 
@@ -167,6 +183,7 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 			defer predictResp.Body.Close()
 			json.NewDecoder(predictResp.Body).Decode(&predictResult)
 		} else {
+			logger.Logger.Warn("[K8s] Root Cause Predictor call failed: ", err)
 			predictResult = map[string]interface{}{"detail": "Not Found"}
 		}
 
@@ -180,6 +197,7 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 			defer kbResp.Body.Close()
 			json.NewDecoder(kbResp.Body).Decode(&kbResult)
 		} else {
+			logger.Logger.Warn("[K8s] Knowledge Base call failed: ", err)
 			kbResult = map[string]interface{}{"detail": "Not Found"}
 		}
 
@@ -193,6 +211,7 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 			defer recResp.Body.Close()
 			json.NewDecoder(recResp.Body).Decode(&recResult)
 		} else {
+			logger.Logger.Warn("[K8s] Action Recommender call failed: ", err)
 			recResult = map[string]interface{}{"detail": "Not Found"}
 		}
 
@@ -215,9 +234,11 @@ func HandleScanK8sLogs(w http.ResponseWriter, r *http.Request) {
 
 // GET /k8s-pods?cluster=...&namespace=...
 func HandleK8sPods(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[K8s] HandleK8sPods called from ", r.RemoteAddr)
 	cluster := r.URL.Query().Get("cluster")
 	namespace := r.URL.Query().Get("namespace")
 	if cluster == "" || namespace == "" {
+		logger.Logger.Warn("[K8s] Missing cluster or namespace in pods request")
 		http.Error(w, "Missing cluster or namespace", http.StatusBadRequest)
 		return
 	}
@@ -225,26 +246,31 @@ func HandleK8sPods(w http.ResponseWriter, r *http.Request) {
 	var err error
 	config, err = rest.InClusterConfig()
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to load kube config: ", err)
 		kubeconfig := os.Getenv("KUBECONFIG")
 		if kubeconfig == "" {
 			kubeconfig = os.ExpandEnv("$HOME/.kube/config")
 		}
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
+			logger.Logger.Error("[K8s] Failed to load kube config: ", err)
 			http.Error(w, "Failed to load kube config", http.StatusInternalServerError)
 			return
 		}
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to create k8s client: ", err)
 		http.Error(w, "Failed to create k8s client", http.StatusInternalServerError)
 		return
 	}
 	pods, err := clientset.CoreV1().Pods(namespace).List(r.Context(), metav1.ListOptions{})
 	if err != nil {
+		logger.Logger.Error("[K8s] Failed to list pods: ", err)
 		http.Error(w, "Failed to list pods", http.StatusInternalServerError)
 		return
 	}
+	logger.Logger.WithField("pods", len(pods.Items)).Info("[K8s] Found pods")
 	var podNames []string
 	for _, pod := range pods.Items {
 		podNames = append(podNames, pod.Name)

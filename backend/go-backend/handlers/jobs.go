@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"backend/go-backend/logger"
 	"backend/go-backend/models"
 	"backend/go-backend/utils"
 
@@ -23,8 +24,10 @@ func getUserID(r *http.Request) (string, bool) {
 
 // POST /api/log-scan-jobs
 func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[Jobs] CreateLogScanJob called from", r.RemoteAddr)
 	userID, ok := getUserID(r)
 	if !ok {
+		logger.Logger.Warn("[Jobs] Unauthorized request")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -38,6 +41,7 @@ func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		Microservices []string `json:"microservices"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Logger.Warn("[Jobs] Invalid create job request:", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
@@ -67,17 +71,21 @@ func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		Microservices: req.Microservices,
 	}
 	if err := utils.AddJob(userID, job); err != nil {
+		logger.Logger.Error("[Jobs] Failed to add job:", err)
 		http.Error(w, "Failed to add job", http.StatusInternalServerError)
 		return
 	}
+	logger.Logger.Info("[Jobs] Job created for user", userID, ":", job)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(job)
 }
 
 // GET /api/log-scan-jobs
 func HandleListLogScanJobs(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[Jobs] ListLogScanJobs called from", r.RemoteAddr)
 	userID, ok := getUserID(r)
 	if !ok {
+		logger.Logger.Warn("[Jobs] Unauthorized request")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -85,14 +93,17 @@ func HandleListLogScanJobs(w http.ResponseWriter, r *http.Request) {
 	if jobs == nil {
 		jobs = []models.Job{}
 	}
+	logger.Logger.Info("[Jobs] Returning", len(jobs), "jobs for user", userID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
 }
 
 // DELETE /api/log-scan-jobs/{id}
 func HandleDeleteLogScanJob(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[Jobs] DeleteLogScanJob called from", r.RemoteAddr)
 	userID, ok := getUserID(r)
 	if !ok {
+		logger.Logger.Warn("[Jobs] Unauthorized request")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -103,16 +114,20 @@ func HandleDeleteLogScanJob(w http.ResponseWriter, r *http.Request) {
 	}
 	jobID := parts[3]
 	if err := utils.DeleteJob(userID, jobID); err != nil {
+		logger.Logger.Error("[Jobs] Failed to delete job:", err)
 		http.Error(w, "Failed to delete job", http.StatusInternalServerError)
 		return
 	}
+	logger.Logger.Info("[Jobs] Job deleted for user", userID, "jobID:", jobID)
 	w.WriteHeader(http.StatusNoContent)
 }
 
 // PUT /api/log-scan-jobs/{id}
 func HandleUpdateLogScanJob(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[Jobs] UpdateLogScanJob called from", r.RemoteAddr)
 	userID, ok := getUserID(r)
 	if !ok {
+		logger.Logger.Warn("[Jobs] Unauthorized request")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -132,6 +147,7 @@ func HandleUpdateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		Cluster       string   `json:"cluster"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		logger.Logger.Warn("[Jobs] Invalid update job request:", err)
 		http.Error(w, "Invalid request", http.StatusBadRequest)
 		return
 	}
@@ -155,9 +171,11 @@ func HandleUpdateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if !updated {
+		logger.Logger.Warn("[Jobs] Job not found for update: jobID=", jobID)
 		http.Error(w, "Job not found", http.StatusNotFound)
 		return
 	}
+	logger.Logger.Info("[Jobs] Job updated for user", userID, "jobID:", jobID)
 	utils.SetJobs(userID, jobs) // update in memory
 	go utils.SaveJobs()         // persist async
 	w.Header().Set("Content-Type", "application/json")
@@ -166,12 +184,15 @@ func HandleUpdateLogScanJob(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/incidents/recent
 func HandleGetRecentIncidents(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[Incidents] GetRecentIncidents called from", r.RemoteAddr)
 	userID, ok := getUserID(r)
 	if !ok {
+		logger.Logger.Warn("[Incidents] Unauthorized request")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
 	incidents := utils.GetRecentIncidents(userID)
+	logger.Logger.Info("[Incidents] Returning", len(incidents), "incidents for user", userID)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(incidents)
 }

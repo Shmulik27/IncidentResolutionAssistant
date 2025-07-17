@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"log"
 	"sync"
 	"time"
 
@@ -47,6 +46,14 @@ func runScheduler() {
 			for userID, userJobs := range jobs {
 				for i, job := range userJobs {
 					if time.Since(job.LastRun) >= time.Duration(job.Interval)*time.Second {
+						Logger.WithFields(map[string]interface{}{
+							"job":           job.ID,
+							"user":          userID,
+							"namespace":     job.Namespace,
+							"pods":          job.Pods,
+							"logLevels":     job.LogLevels,
+							"microservices": job.Microservices,
+						}).Info("[Scheduler] Running job")
 						// Run job in background, limited by semaphore
 						sem <- struct{}{}
 						go func(userID string, job models.Job, jobIdx int) {
@@ -54,9 +61,21 @@ func runScheduler() {
 							// Run the log scan and analysis for this job
 							incidents, err := RunLogScanJob(userID, job)
 							if err != nil {
-								log.Printf("Job %s for user %s failed: %v", job.ID, userID, err)
+								Logger.WithFields(map[string]interface{}{
+									"job":  job.ID,
+									"user": userID,
+								}).Error("[Scheduler] Job failed: ", err)
 							} else {
+								Logger.WithFields(map[string]interface{}{
+									"job":       job.ID,
+									"user":      userID,
+									"incidents": len(incidents),
+								}).Info("[Scheduler] Job produced incidents")
 								for _, inc := range incidents {
+									Logger.WithFields(map[string]interface{}{
+										"job":      inc.JobID,
+										"log_line": inc.LogLine,
+									}).Info("[Scheduler] Incident created")
 									AddIncident(userID, inc)
 								}
 								// Update last run
@@ -118,6 +137,11 @@ func runLogScanJobImpl(userID string, job models.Job) ([]models.Incident, error)
 	for _, lvl := range job.LogLevels {
 		logLevels[strings.ToUpper(lvl)] = true
 	}
+	Logger.WithFields(map[string]interface{}{
+		"namespace": job.Namespace,
+		"pods":      podsToScan,
+		"logLevels": job.LogLevels,
+	}).Info("[RunLogScanJob] Scanning")
 	for _, podName := range podsToScan {
 		var podObj *corev1.Pod
 		pods, err := clientset.CoreV1().Pods(job.Namespace).List(context.Background(), metav1.ListOptions{})
@@ -146,6 +170,10 @@ func runLogScanJobImpl(userID string, job models.Job) ([]models.Incident, error)
 				for _, line := range strings.Split(string(b), "\n") {
 					for lvl := range logLevels {
 						if strings.Contains(line, lvl) {
+							Logger.WithFields(map[string]interface{}{
+								"pod": podName,
+								"log": line,
+							}).Debug("[RunLogScanJob] Matched log")
 							logs = append(logs, line)
 							break
 						}
@@ -154,6 +182,7 @@ func runLogScanJobImpl(userID string, job models.Job) ([]models.Incident, error)
 			}
 		}
 	}
+	Logger.WithField("matched_logs", len(logs)).Info("[RunLogScanJob] Total matched logs")
 	if len(logs) == 0 {
 		return nil, nil
 	}

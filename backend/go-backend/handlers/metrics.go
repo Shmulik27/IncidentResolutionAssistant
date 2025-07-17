@@ -1,14 +1,15 @@
 package handlers
 
 import (
+	"backend/go-backend/logger"
 	"encoding/json"
-	"log"
 	"math/rand"
 	"net/http"
 	"time"
 )
 
 func MetricsStreamHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Logger.Info("[Metrics] Metrics stream started from", r.RemoteAddr)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -30,17 +31,18 @@ func MetricsStreamHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		b, _ := json.Marshal(metrics)
 		if _, err := w.Write([]byte("data: ")); err != nil {
-			log.Printf("failed to write SSE data: %v", err)
+			logger.Logger.Error("[Metrics] Failed to write SSE data (data:):", err)
 		}
 		if _, err := w.Write(b); err != nil {
-			log.Printf("failed to write SSE data: %v", err)
+			logger.Logger.Error("[Metrics] Failed to write SSE data (metrics):", err)
 		}
 		if _, err := w.Write([]byte("\n\n")); err != nil {
-			log.Printf("failed to write SSE data: %v", err)
+			logger.Logger.Error("[Metrics] Failed to write SSE data (newline):", err)
 		}
 		flusher.Flush()
 		time.Sleep(1 * time.Second)
 		if r.Context().Err() != nil {
+			logger.Logger.Info("[Metrics] Metrics stream closed for", r.RemoteAddr)
 			return
 		}
 	}
