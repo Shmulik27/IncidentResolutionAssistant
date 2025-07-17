@@ -63,6 +63,7 @@ def handle_incident(event: IncidentEvent):
 
 @app.post("/github-webhook")
 async def github_webhook(request: Request, x_hub_signature_256: str = Header(None)):
+    WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
     body = await request.body()
     if not x_hub_signature_256 or not verify_signature(body, str(WEBHOOK_SECRET), x_hub_signature_256):
         raise HTTPException(status_code=403, detail="Invalid signature")

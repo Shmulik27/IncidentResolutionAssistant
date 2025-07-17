@@ -21,6 +21,16 @@ var (
 	incidents      = make(map[string][]models.Incident) // userID -> incidents
 )
 
+// ClearJobs resets the global jobs map (for test isolation)
+func ClearJobs() {
+	jobs = make(map[string][]models.Job)
+}
+
+// ClearIncidents resets the global incidents map (for test isolation)
+func ClearIncidents() {
+	incidents = make(map[string][]models.Incident)
+}
+
 // LoadJobs loads jobs from the JSON file into memory
 func LoadJobs() error {
 	logger.Logger.Info("Loading jobs from file:", JobsFile)

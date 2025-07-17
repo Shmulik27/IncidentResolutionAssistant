@@ -18,11 +18,11 @@ function run_test() {
 }
 
 # Python microservices
-run_test "Python Log Analyzer Tests" "cd backend/python-services/log_analyzer && pytest && cd - > /dev/null"
-run_test "Python Root Cause Predictor Tests" "cd backend/python-services/root_cause_predictor && pytest && cd - > /dev/null"
-run_test "Python Action Recommender Tests" "cd backend/python-services/action_recommender && pytest && cd - > /dev/null"
-run_test "Python Knowledge Base/Vector Search Tests" "cd backend/python-services/knowledge_base && pytest && cd - > /dev/null"
-run_test "Python Incident Integrator Tests" "cd backend/python-services/incident_integrator && pytest && cd - > /dev/null"
+run_test "Python Log Analyzer Tests" "(cd backend/python-services/log_analyzer && source venv/bin/activate && pytest)"
+run_test "Python Root Cause Predictor Tests" "(cd backend/python-services/root_cause_predictor && source venv/bin/activate && pytest)"
+run_test "Python Action Recommender Tests" "(cd backend/python-services/action_recommender && source venv/bin/activate && pytest)"
+run_test "Python Knowledge Base/Vector Search Tests" "(cd backend/python-services/knowledge_base && source venv/bin/activate && pytest)"
+run_test "Python Incident Integrator Tests" "(cd backend/python-services/incident_integrator && source venv/bin/activate && pytest)"
 
 # Go backend (unit, integration, E2E)
 run_test "Go Backend Tests (unit, integration, E2E)" "cd backend/go-backend && gtimeout 5m go test -v ./... && cd - > /dev/null"

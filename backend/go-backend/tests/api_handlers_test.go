@@ -2,7 +2,6 @@ package tests
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,24 +9,9 @@ import (
 	"testing"
 
 	"backend/go-backend/handlers"
+	testhelpers "backend/go-backend/testhelpers"
 	"backend/go-backend/utils"
 )
-
-// mock user context
-func withUser(r *http.Request, userID string) *http.Request {
-	ctx := r.Context()
-	ctx = contextWithUserID(ctx, userID)
-	return r.WithContext(ctx)
-}
-
-// contextWithUserID is a helper to mock Firebase user context
-func contextWithUserID(ctx context.Context, userID string) context.Context {
-	return context.WithValue(ctx, "user", &mockToken{UID: userID})
-}
-
-type mockToken struct{ UID string }
-
-func (m *mockToken) Claims() map[string]interface{} { return map[string]interface{}{} }
 
 func TestJobAPIHandlers(t *testing.T) {
 	userID := "testuser"
@@ -35,6 +19,8 @@ func TestJobAPIHandlers(t *testing.T) {
 	defer os.Remove(utils.JobsFile)
 	utils.IncidentsFile = "test_incidents_data.json"
 	defer os.Remove(utils.IncidentsFile)
+
+	jobService := &handlers.DefaultJobService{}
 
 	// Test create job
 	jobReq := map[string]interface{}{
@@ -45,9 +31,9 @@ func TestJobAPIHandlers(t *testing.T) {
 	}
 	body, _ := json.Marshal(jobReq)
 	r := httptest.NewRequest("POST", "/api/log-scan-jobs", bytes.NewReader(body))
-	r = withUser(r, userID)
+	r = testhelpers.WithUser(r, userID)
 	w := httptest.NewRecorder()
-	handlers.HandleCreateLogScanJob(w, r)
+	handlers.HandleCreateLogScanJob(jobService)(w, r)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("Create job failed: %d %s", w.Code, w.Body.String())
 	}
@@ -59,9 +45,9 @@ func TestJobAPIHandlers(t *testing.T) {
 
 	// Test list jobs
 	r = httptest.NewRequest("GET", "/api/log-scan-jobs", nil)
-	r = withUser(r, userID)
+	r = testhelpers.WithUser(r, userID)
 	w = httptest.NewRecorder()
-	handlers.HandleListLogScanJobs(w, r)
+	handlers.HandleListLogScanJobs(jobService)(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("List jobs failed: %d %s", w.Code, w.Body.String())
 	}
@@ -74,18 +60,18 @@ func TestJobAPIHandlers(t *testing.T) {
 	// Test delete job
 	jobID := jobs[0]["id"].(string)
 	r = httptest.NewRequest("DELETE", "/api/log-scan-jobs/"+jobID, nil)
-	r = withUser(r, userID)
+	r = testhelpers.WithUser(r, userID)
 	w = httptest.NewRecorder()
-	handlers.HandleDeleteLogScanJob(w, r)
+	handlers.HandleDeleteLogScanJob(jobService)(w, r)
 	if w.Code != http.StatusNoContent {
 		t.Fatalf("Delete job failed: %d %s", w.Code, w.Body.String())
 	}
 
 	// Test get recent incidents (should be empty)
 	r = httptest.NewRequest("GET", "/api/incidents/recent", nil)
-	r = withUser(r, userID)
+	r = testhelpers.WithUser(r, userID)
 	w = httptest.NewRecorder()
-	handlers.HandleGetRecentIncidents(w, r)
+	handlers.HandleGetRecentIncidents(jobService)(w, r)
 	if w.Code != http.StatusOK {
 		t.Fatalf("Get incidents failed: %d %s", w.Code, w.Body.String())
 	}

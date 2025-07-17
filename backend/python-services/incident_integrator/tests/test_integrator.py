@@ -6,8 +6,6 @@ from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 from app.api import app
 
-client = TestClient(app)
-
 @pytest.fixture(autouse=True)
 def set_slack_env(monkeypatch):
     monkeypatch.setenv('SLACK_WEBHOOK_URL', 'http://mock-slack-webhook')
@@ -17,11 +15,13 @@ def set_slack_env(monkeypatch):
     monkeypatch.setenv('JIRA_SERVER', 'http://dummy-jira')
     monkeypatch.setenv('JIRA_USER', 'dummy')
     monkeypatch.setenv('JIRA_TOKEN', 'dummy')
+    monkeypatch.setenv('WEBHOOK_SECRET', 'dummysecret')
 
 @patch('app.api.get_github_repo')
 @patch('app.api.get_jira_client')
 @patch('app.logic.requests.post')
 def test_slack_notification_on_new_incident(mock_post, mock_jira, mock_github):
+    client = TestClient(app)
     # Mock Jira client
     mock_jira_instance = MagicMock()
     mock_jira.return_value = mock_jira_instance
@@ -55,6 +55,7 @@ def test_slack_notification_on_new_incident(mock_post, mock_jira, mock_github):
 @patch('app.api.get_jira_client')
 @patch('app.logic.requests.post')
 def test_slack_notification_on_incident_resolved(mock_post, mock_jira):
+    client = TestClient(app)
     # Mock Jira client
     mock_jira_instance = MagicMock()
     mock_jira.return_value = mock_jira_instance

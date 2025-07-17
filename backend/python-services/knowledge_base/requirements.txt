@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+prometheus_client
+pytest
+httpx
+pydantic
+faiss-cpu
+sentence-transformers
+numpy 

@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+prometheus_client
+pytest
+httpx
+pydantic 
+scikit-learn 

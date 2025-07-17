@@ -8,7 +8,17 @@ import (
 	"time"
 )
 
-func MetricsStreamHandler(w http.ResponseWriter, r *http.Request) {
+// MetricsService abstracts metrics streaming operations for handlers
+type MetricsService interface {
+	StreamMetrics(w http.ResponseWriter, r *http.Request)
+}
+
+// DefaultMetricsService implements MetricsService using current logic
+// (for backward compatibility; refactor internals as needed)
+type DefaultMetricsService struct{}
+
+// StreamMetrics streams metrics as SSE
+func (s DefaultMetricsService) StreamMetrics(w http.ResponseWriter, r *http.Request) {
 	logger.Logger.Info("[Metrics] Metrics stream started from", r.RemoteAddr)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -45,5 +55,12 @@ func MetricsStreamHandler(w http.ResponseWriter, r *http.Request) {
 			logger.Logger.Info("[Metrics] Metrics stream closed for", r.RemoteAddr)
 			return
 		}
+	}
+}
+
+// Refactored handler: injects MetricsService
+func MetricsStreamHandler(metricsService MetricsService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		metricsService.StreamMetrics(w, r)
 	}
 }

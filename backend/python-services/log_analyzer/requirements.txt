@@ -1,9 +1,8 @@
 fastapi
 uvicorn
-python-dotenv
+prometheus_client
 pytest
 httpx
 pydantic
-requests
-jira
-PyGithub 
+spacy 
+scikit-learn 

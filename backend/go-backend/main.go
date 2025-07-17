@@ -75,24 +75,31 @@ func main() {
 	logger.Logger.Info("[Main] Initializing backend...")
 	InitFirebase()
 
+	// Instantiate services
+	jobService := &handlers.DefaultJobService{}
+	k8sService := &handlers.DefaultK8sService{}
+	analyzeService := &handlers.DefaultAnalyzeService{}
+	metricsService := &handlers.DefaultMetricsService{}
+	healthService := &handlers.DefaultHealthService{}
+
 	// Public endpoints
-	http.HandleFunc("/health", withCORS(handlers.HandleHealth))
+	http.HandleFunc("/health", withCORS(handlers.HandleHealth(healthService)))
 	http.Handle("/metrics", withCORS(promhttp.Handler().ServeHTTP))
-	http.HandleFunc("/metrics/stream", withCORS(handlers.MetricsStreamHandler))
-	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces))
-	http.HandleFunc("/k8s-pods", withCORS(handlers.HandleK8sPods))
-	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs))
+	http.HandleFunc("/metrics/stream", withCORS(handlers.MetricsStreamHandler(metricsService)))
+	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces(k8sService)))
+	http.HandleFunc("/k8s-pods", withCORS(handlers.HandleK8sPods(k8sService)))
+	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs(k8sService)))
 
 	// Protected endpoints (require Firebase Auth)
-	http.HandleFunc("/analyze", withCORS(FirebaseAuthMiddleware(handlers.HandleAnalyze)))
+	http.HandleFunc("/analyze", withCORS(FirebaseAuthMiddleware(handlers.HandleAnalyze(analyzeService))))
 
 	// Log scan job management endpoints (all protected)
 	http.HandleFunc("/api/log-scan-jobs", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodPost:
-			handlers.HandleCreateLogScanJob(w, r)
+			handlers.HandleCreateLogScanJob(jobService)(w, r)
 		case http.MethodGet:
-			handlers.HandleListLogScanJobs(w, r)
+			handlers.HandleListLogScanJobs(jobService)(w, r)
 		case http.MethodOptions:
 			w.WriteHeader(http.StatusOK)
 		default:
@@ -101,10 +108,10 @@ func main() {
 	})))
 	http.HandleFunc("/api/log-scan-jobs/", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodDelete {
-			handlers.HandleDeleteLogScanJob(w, r)
+			handlers.HandleDeleteLogScanJob(jobService)(w, r)
 			return
 		} else if r.Method == http.MethodPut {
-			handlers.HandleUpdateLogScanJob(w, r)
+			handlers.HandleUpdateLogScanJob(jobService)(w, r)
 			return
 		} else if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
@@ -114,7 +121,7 @@ func main() {
 	})))
 	http.HandleFunc("/api/incidents/recent", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			handlers.HandleGetRecentIncidents(w, r)
+			handlers.HandleGetRecentIncidents(jobService)(w, r)
 			return
 		} else if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)

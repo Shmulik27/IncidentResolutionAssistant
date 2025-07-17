@@ -2,6 +2,8 @@ package tests
 
 import (
 	"backend/go-backend/handlers"
+	"backend/go-backend/models"
+	testhelpers "backend/go-backend/testhelpers"
 	"backend/go-backend/utils"
 	"bytes"
 	"encoding/json"
@@ -53,10 +55,29 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 	defer os.Remove(utils.JobsFile)
 	defer os.Remove(utils.IncidentsFile)
 
+	jobService := &handlers.DefaultJobService{}
+
+	// Patch RunLogScanJob to always return a test incident
+	orig := utils.RunLogScanJob
+	utils.RunLogScanJob = func(userID string, job models.Job) ([]models.Incident, error) {
+		return []models.Incident{{
+			ID:        "inc-e2e-" + job.ID,
+			UserID:    userID,
+			JobID:     job.ID,
+			Timestamp: time.Now(),
+			LogLine:   "ERROR e2e test log",
+			Analysis:  "{\"result\":\"e2e\"}",
+			RootCause: "{\"root\":\"e2e\"}",
+			Knowledge: "{\"kb\":\"e2e\"}",
+			Action:    "{\"action\":\"e2e\"}",
+		}}, nil
+	}
+	defer func() { utils.RunLogScanJob = orig }()
+
 	// Start backend server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/api/log-scan-jobs", handlers.HandleCreateLogScanJob)
-	mux.HandleFunc("/api/incidents/recent", handlers.HandleGetRecentIncidents)
+	mux.HandleFunc("/api/log-scan-jobs", handlers.HandleCreateLogScanJob(jobService))
+	mux.HandleFunc("/api/incidents/recent", handlers.HandleGetRecentIncidents(jobService))
 	ln, err := net.Listen("tcp", ":0")
 	if err != nil {
 		t.Fatalf("Failed to start backend: %v", err)
@@ -73,25 +94,25 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 	body, _ := json.Marshal(jobReq)
 	// Use httptest to inject user context
 	r := httptest.NewRequest("POST", "/api/log-scan-jobs", bytes.NewReader(body))
-	r = withUser(r, "e2euser")
+	r = testhelpers.WithUser(r, "e2euser")
 	w := httptest.NewRecorder()
-	handlers.HandleCreateLogScanJob(w, r)
+	handlers.HandleCreateLogScanJob(jobService)(w, r)
 	if w.Code != 201 {
 		t.Fatalf("Create job failed: %d %s", w.Code, w.Body.String())
 	}
 
 	// Start scheduler
 	go utils.StartScheduler()
-	defer utils.StopScheduler()
+	defer func() { recover(); utils.StopScheduler() }()
 
 	// Wait for the job to run
 	time.Sleep(1500 * time.Millisecond)
 
 	// Fetch incidents via API
 	r = httptest.NewRequest("GET", "/api/incidents/recent", nil)
-	r = withUser(r, "e2euser")
+	r = testhelpers.WithUser(r, "e2euser")
 	w = httptest.NewRecorder()
-	handlers.HandleGetRecentIncidents(w, r)
+	handlers.HandleGetRecentIncidents(jobService)(w, r)
 	if w.Code != 200 {
 		t.Fatalf("Get incidents failed: %d %s", w.Code, w.Body.String())
 	}

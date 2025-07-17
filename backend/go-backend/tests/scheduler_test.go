@@ -3,6 +3,7 @@ package tests
 import (
 	"backend/go-backend/models"
 	"backend/go-backend/utils"
+	"os"
 	"strconv"
 	"sync/atomic"
 	"testing"
@@ -25,6 +26,9 @@ func mockRunLogScanJob(userID string, job models.Job) ([]models.Incident, error)
 }
 
 func TestSchedulerRunsJobsAtInterval(t *testing.T) {
+	utils.ResetSchedulerForTest()
+	utils.ClearJobs()
+	utils.ClearIncidents()
 	utils.JobsFile = "test_jobs_data.json"
 	utils.IncidentsFile = "test_incidents_data.json"
 	defer func() {
@@ -41,6 +45,7 @@ func TestSchedulerRunsJobsAtInterval(t *testing.T) {
 		LogLevels: []string{"ERROR"},
 		Interval:  1,
 		CreatedAt: time.Now(),
+		LastRun:   time.Now().Add(-time.Hour), // Ensure job runs immediately
 	}
 	_ = utils.AddJob(userID, job)
 
@@ -50,9 +55,19 @@ func TestSchedulerRunsJobsAtInterval(t *testing.T) {
 	defer func() { utils.RunLogScanJob = orig }()
 
 	runCount = 0
+	jobsBefore := utils.GetJobs(userID)
+	if len(jobsBefore) > 0 {
+		t.Logf("Before scheduler: LastRun = %v", jobsBefore[0].LastRun)
+	}
 	go utils.StartScheduler()
-	// Wait for a few intervals
-	time.Sleep(3500 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) // Give the scheduler goroutine time to start
+	// Wait for a few intervals (increase to 5s for robustness)
+	time.Sleep(5000 * time.Millisecond)
+	jobsAfter := utils.GetJobs(userID)
+	if len(jobsAfter) > 0 {
+		t.Logf("After scheduler: LastRun = %v", jobsAfter[0].LastRun)
+	}
+	t.Logf("[DEBUG] runCount = %d", runCount)
 	if atomic.LoadInt32(&runCount) < 2 {
 		t.Fatalf("Expected at least 2 job runs, got %d", runCount)
 	}
@@ -64,6 +79,8 @@ func TestSchedulerRunsJobsAtInterval(t *testing.T) {
 }
 
 func TestSchedulerConcurrencyLimit(t *testing.T) {
+	utils.ClearJobs()
+	utils.ClearIncidents()
 	utils.JobsFile = "test_jobs_data2.json"
 	utils.IncidentsFile = "test_incidents_data2.json"
 	userID := "user2"
@@ -77,6 +94,7 @@ func TestSchedulerConcurrencyLimit(t *testing.T) {
 			LogLevels: []string{"ERROR"},
 			Interval:  1,
 			CreatedAt: time.Now(),
+			LastRun:   time.Now().Add(-time.Hour), // Ensure job runs immediately
 		})
 	}
 	for _, job := range jobs {
@@ -98,4 +116,63 @@ func TestSchedulerConcurrencyLimit(t *testing.T) {
 	// (We can't directly check goroutines, but this ensures no deadlock)
 	close(blockCh)
 	utils.StopScheduler()
+}
+
+func TestJobRunsImmediatelyAfterCreation(t *testing.T) {
+	utils.ResetSchedulerForTest()
+	utils.ClearJobs()
+	utils.ClearIncidents()
+	utils.JobsFile = "test_jobs_data_immediate.json"
+	defer os.Remove(utils.JobsFile)
+
+	userID := "immediateuser"
+	job := models.Job{
+		ID:        "job-immediate",
+		UserID:    userID,
+		Name:      "Immediate Job",
+		Namespace: "default",
+		LogLevels: []string{"ERROR"},
+		Interval:  1,
+		CreatedAt: time.Now(),
+		LastRun:   time.Now().Add(-time.Hour), // Ensure job runs immediately
+	}
+	_ = utils.AddJob(userID, job)
+
+	// Patch RunLogScanJob to always return a test incident
+	orig := utils.RunLogScanJob
+	utils.RunLogScanJob = func(userID string, job models.Job) ([]models.Incident, error) {
+		return []models.Incident{{
+			ID:        "inc-immediate-" + job.ID,
+			UserID:    userID,
+			JobID:     job.ID,
+			Timestamp: time.Now(),
+			LogLine:   "ERROR immediate test log",
+			Analysis:  "{\"result\":\"immediate\"}",
+		}}, nil
+	}
+	defer func() { utils.RunLogScanJob = orig }()
+
+	jobsBefore := utils.GetJobs(userID)
+	if len(jobsBefore) > 0 {
+		t.Logf("Before scheduler: LastRun = %v", jobsBefore[0].LastRun)
+	}
+	go utils.StartScheduler()
+	time.Sleep(100 * time.Millisecond) // Give the scheduler goroutine time to start
+	// Wait longer for robustness
+	time.Sleep(2500 * time.Millisecond)
+	utils.StopScheduler()
+
+	jobs := utils.GetJobs(userID)
+	if len(jobs) > 0 {
+		t.Logf("After scheduler: LastRun = %v", jobs[0].LastRun)
+	}
+	if len(jobs) == 0 {
+		t.Fatalf("No jobs found for user")
+	}
+	if jobs[0].LastRun.IsZero() {
+		t.Fatalf("LastRun was not updated after scheduler ran: %+v", jobs[0])
+	}
+	if time.Since(jobs[0].LastRun) > 5*time.Second {
+		t.Fatalf("LastRun is too old: %v", jobs[0].LastRun)
+	}
 }
