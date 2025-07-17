@@ -15,6 +15,7 @@ import (
 	"backend/go-backend/handlers"
 	"backend/go-backend/logger"
 	"backend/go-backend/middleware"
+	"backend/go-backend/utils"
 )
 
 var firebaseAuth *auth.Client
@@ -70,6 +71,7 @@ func withCORS(handler http.HandlerFunc) http.HandlerFunc {
 
 func main() {
 	logger.Init()
+	utils.StartScheduler()
 	logger.Logger.Info("[Main] Initializing backend...")
 	InitFirebase()
 
