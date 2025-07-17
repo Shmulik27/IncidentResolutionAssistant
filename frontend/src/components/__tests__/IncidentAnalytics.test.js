@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import IncidentAnalytics from '../IncidentAnalytics.jsx';
 import { api } from '../../services/api';
@@ -12,29 +12,36 @@ describe('IncidentAnalytics recent incidents', () => {
     api.getRecentIncidents.mockResolvedValue([
       {
         id: 'inc1',
-        timestamp: new Date().toISOString(),
-        job_id: 'job1',
-        log_line: 'ERROR something failed',
-        analysis: '{"result":"fail"}',
-        root_cause: '{"root":"bad config"}',
-        knowledge: '{"kb":"restart"}',
-        action: '{"action":"restart pod"}'
+        title: 'Database Outage',
+        service: 'db-service',
+        severity: 'High',
+        status: 'Open',
+        category: 'Database',
+        createdAt: '2024-06-01T12:00:00Z',
+        resolutionTime: null,
       }
     ]);
   });
 
-  it('renders recent incidents table', async () => {
-    render(<IncidentAnalytics />);
-    expect(await screen.findByText('Recent Incidents (from Scheduled Log Scan Jobs)')).toBeInTheDocument();
-    expect(await screen.findByText('job1')).toBeInTheDocument();
-    expect(await screen.findByText('ERROR something failed')).toBeInTheDocument();
-    expect(await screen.findByText('{"result":"fail"}')).toBeInTheDocument();
-    expect(await screen.findByText('{"action":"restart pod"}')).toBeInTheDocument();
+  it('renders recent incidents in the table', async () => {
+    render(<IncidentAnalytics active={true} />);
+    // Wait for the table to appear
+    const table = await screen.findByRole('table');
+    // Find the row with the incident title
+    const rows = within(table).getAllByRole('row');
+    // There should be a header row and at least one data row
+    expect(rows.length).toBeGreaterThan(1);
+    // Check for the incident title in any cell
+    const found = rows.some(row =>
+      within(row).queryByText(/database outage/i)
+    );
+    expect(found).toBe(true);
   });
 
-  it('shows info if no incidents', async () => {
+  it('shows info message when no incidents', async () => {
     api.getRecentIncidents.mockResolvedValue([]);
-    render(<IncidentAnalytics />);
-    expect(await screen.findByText('No recent incidents found.')).toBeInTheDocument();
+    render(<IncidentAnalytics active={true} />);
+    // Wait for the info message to appear
+    expect(await screen.findByText(/no recent incidents found/i)).toBeInTheDocument();
   });
 }); 

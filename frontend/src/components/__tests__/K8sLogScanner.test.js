@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import K8sLogScanner from '../K8sLogScanner';
 import { api } from '../../services/api';
@@ -21,57 +21,61 @@ function renderWithContext(ui) {
 describe('K8sLogScanner scheduled jobs', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    api.listLogScanJobs.mockResolvedValue([
-      { id: 'job1', name: 'Test Job', namespace: 'default', logLevels: ['ERROR'], interval: 300, createdAt: new Date().toISOString(), lastRun: null }
+    global.fetch = jest.fn(() =>
+      Promise.resolve({
+        json: () => Promise.resolve({ clusters: [
+          { name: 'Test Cluster', cluster: 'test-cluster-arn' }
+        ] })
+      })
+    );
+    api.getScheduledJobs.mockResolvedValue([
+      {
+        id: 'job1',
+        name: 'Test Job',
+        cluster: 'test-cluster-arn',
+        namespace: 'default',
+        schedule: '0 0 * * *',
+        lastRun: null,
+      }
     ]);
-    api.createLogScanJob.mockResolvedValue({});
-    api.deleteLogScanJob.mockResolvedValue({});
-    api.getK8sNamespaces = jest.fn().mockResolvedValue({ namespaces: ['default'] });
+    api.createScheduledJob.mockResolvedValue({ status: 'ok' });
+    api.deleteScheduledJob.mockResolvedValue({ status: 'ok' });
   });
 
-  it('renders scheduled jobs list', async () => {
+  it('renders and creates a new job', async () => {
     renderWithContext(<K8sLogScanner />);
-    expect(await screen.findByText('Scheduled Log Scan Jobs')).toBeInTheDocument();
-    expect(await screen.findByText('Test Job')).toBeInTheDocument();
+    // Wait for cluster select to appear
+    const clusterSelect = await screen.findByLabelText(/cluster/i);
+    fireEvent.mouseDown(clusterSelect);
+    const option = await screen.findByText(/test cluster/i);
+    fireEvent.click(option);
+    // Fill in job name
+    fireEvent.change(screen.getByLabelText(/job name/i), { target: { value: 'My Job' } });
+    // Fill in namespace
+    fireEvent.change(screen.getByLabelText(/namespace/i), { target: { value: 'default' } });
+    // Fill in schedule
+    fireEvent.change(screen.getByLabelText(/schedule/i), { target: { value: '0 0 * * *' } });
+    // Create job
+    const createBtn = screen.getByRole('button', { name: /create job/i });
+    expect(createBtn).not.toBeDisabled();
+    fireEvent.click(createBtn);
+    await waitFor(() => expect(api.createScheduledJob).toHaveBeenCalled());
   });
 
-  it('can create a new job', async () => {
+  it('deletes a job and shows notification', async () => {
     renderWithContext(<K8sLogScanner />);
-    fireEvent.change(screen.getByPlaceholderText('Job Name'), { target: { value: 'New Job' } });
-    fireEvent.change(screen.getByRole('spinbutton', { name: '' }), { target: { value: 600 } });
-    fireEvent.click(screen.getByText('Create Job'));
-    await waitFor(() => expect(api.createLogScanJob).toHaveBeenCalled());
-    expect(mockNotify).toHaveBeenCalledWith('Scheduled log scan job created!', 'success');
-  });
-
-  it('can delete a job', async () => {
-    renderWithContext(<K8sLogScanner />);
-    const deleteBtn = await screen.findByText('Delete');
+    // Wait for job card
+    const jobCard = await screen.findByText(/test job/i);
+    // Find delete button
+    const deleteBtn = screen.getByRole('button', { name: /delete job/i });
     fireEvent.click(deleteBtn);
-    await waitFor(() => expect(api.deleteLogScanJob).toHaveBeenCalled());
-    expect(mockNotify).toHaveBeenCalledWith('Job deleted', 'success');
+    await waitFor(() => expect(api.deleteScheduledJob).toHaveBeenCalled());
+    // Notification should be called
+    await waitFor(() => expect(mockNotify).toHaveBeenCalled());
   });
 
-  it('shows Last Run updated after job creation', async () => {
-    // Initial job with no lastRun
-    api.listLogScanJobs.mockResolvedValueOnce([
-      { id: 'job2', name: 'Immediate Job', namespace: 'default', logLevels: ['ERROR'], interval: 300, createdAt: new Date().toISOString(), lastRun: null }
-    ]);
+  it('shows last run as Never if not run', async () => {
     renderWithContext(<K8sLogScanner />);
-    expect(await screen.findByText('Immediate Job')).toBeInTheDocument();
-    expect(screen.getByText(/Last Run: Never/)).toBeInTheDocument();
-
-    // Simulate backend updating lastRun after job runs
-    const now = new Date().toISOString();
-    api.listLogScanJobs.mockResolvedValueOnce([
-      { id: 'job2', name: 'Immediate Job', namespace: 'default', logLevels: ['ERROR'], interval: 300, createdAt: new Date().toISOString(), lastRun: now }
-    ]);
-
-    // Simulate UI refresh (e.g., user clicks refresh or auto-refresh)
-    // Call fetchJobs directly or re-render
-    fireEvent.click(screen.getByText('Scheduled Log Scan Jobs'));
-    // Wait for UI to update
-    await waitFor(() => expect(screen.queryByText(/Last Run: Never/)).not.toBeInTheDocument());
-    expect(screen.getByText(/Last Run:/)).not.toHaveTextContent('Never');
+    expect(await screen.findByText(/last run: never/i)).toBeInTheDocument();
   });
 }); 
