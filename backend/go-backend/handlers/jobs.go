@@ -29,12 +29,13 @@ func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var req struct {
-		Name      string   `json:"name"`
-		Namespace string   `json:"namespace"`
-		LogLevels []string `json:"log_levels"`
-		Interval  int      `json:"interval"` // seconds
-		Pods      []string `json:"pods"`
-		Cluster   string   `json:"cluster"`
+		Name          string   `json:"name"`
+		Namespace     string   `json:"namespace"`
+		LogLevels     []string `json:"log_levels"`
+		Interval      int      `json:"interval"` // seconds
+		Pods          []string `json:"pods"`
+		Cluster       string   `json:"cluster"`
+		Microservices []string `json:"microservices"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -44,17 +45,26 @@ func HandleCreateLogScanJob(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Missing namespace or invalid interval", http.StatusBadRequest)
 		return
 	}
+	if req.Microservices == nil || len(req.Microservices) == 0 {
+		req.Microservices = []string{
+			"log_analyzer",
+			"root_cause_predictor",
+			"knowledge_base",
+			"action_recommender",
+		}
+	}
 	job := models.Job{
-		ID:        uuid.New().String(),
-		UserID:    userID,
-		Name:      req.Name,
-		Cluster:   req.Cluster,
-		Namespace: req.Namespace,
-		LogLevels: req.LogLevels,
-		Interval:  req.Interval, // store as int seconds
-		Pods:      req.Pods,
-		CreatedAt: time.Now(),
-		LastRun:   time.Now().Add(-time.Duration(req.Interval) * time.Second), // run immediately
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		Name:          req.Name,
+		Cluster:       req.Cluster,
+		Namespace:     req.Namespace,
+		LogLevels:     req.LogLevels,
+		Interval:      req.Interval, // store as int seconds
+		Pods:          req.Pods,
+		CreatedAt:     time.Now(),
+		LastRun:       time.Now().Add(-time.Duration(req.Interval) * time.Second), // run immediately
+		Microservices: req.Microservices,
 	}
 	if err := utils.AddJob(userID, job); err != nil {
 		http.Error(w, "Failed to add job", http.StatusInternalServerError)
@@ -72,6 +82,9 @@ func HandleListLogScanJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jobs := utils.GetJobs(userID)
+	if jobs == nil {
+		jobs = []models.Job{}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jobs)
 }

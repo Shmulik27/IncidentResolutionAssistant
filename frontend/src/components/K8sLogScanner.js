@@ -322,11 +322,17 @@ const K8sLogScanner = () => {
     try {
       const job = {
         name: jobForm.name,
-        namespace: selectedNamespaces[0], // <-- use the actual selected namespace!
+        namespace: selectedNamespaces[0],
         log_levels: jobForm.logLevels,
         interval: parseInt(jobForm.interval, 10) * 60,
         pods: jobForm.pods,
         cluster: selectedCluster,
+        microservices: [
+          'log_analyzer',
+          'root_cause_predictor',
+          'knowledge_base',
+          'action_recommender',
+        ],
       };
       await api.createLogScanJob(job);
       setJobForm({ name: '', namespace: 'default', logLevels: ['ERROR', 'WARN', 'CRITICAL'], interval: 300, pods: [] });
@@ -571,11 +577,17 @@ const K8sLogScanner = () => {
                     try {
                       await api.updateLogScanJob(editingJobId, {
                         name: jobForm.name,
-                        namespace: selectedNamespaces[0], // <-- use the actual selected namespace!
+                        namespace: selectedNamespaces[0],
                         log_levels: jobForm.logLevels,
                         interval: parseInt(jobForm.interval, 10) * 60,
                         pods: jobForm.pods,
                         cluster: selectedCluster,
+                        microservices: [
+                          'log_analyzer',
+                          'root_cause_predictor',
+                          'knowledge_base',
+                          'action_recommender',
+                        ],
                       });
                       setEditingJobId(null);
                       setShowJobForm(false);
