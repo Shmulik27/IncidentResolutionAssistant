@@ -15,11 +15,7 @@ import (
 	"backend/go-backend/handlers"
 	"backend/go-backend/logger"
 	"backend/go-backend/middleware"
-	"backend/go-backend/services/analyze"
-	"backend/go-backend/services/health"
-	"backend/go-backend/services/jobs"
-	"backend/go-backend/services/k8s"
-	"backend/go-backend/services/metrics"
+	"backend/go-backend/services"
 	"backend/go-backend/utils"
 )
 
@@ -81,11 +77,11 @@ func main() {
 	InitFirebase()
 
 	// Instantiate services
-	jobService := &jobs.DefaultJobService{}
-	k8sService := &k8s.DefaultK8sService{}
-	analyzeService := &analyze.DefaultAnalyzeService{}
-	metricsService := &metrics.DefaultMetricsService{}
-	healthService := &health.DefaultHealthService{}
+	jobService := &services.DefaultJobService{}
+	k8sService := &services.DefaultK8sService{}
+	analyzeService := &services.DefaultAnalyzeService{}
+	metricsService := &services.DefaultMetricsService{}
+	healthService := &services.DefaultHealthService{}
 
 	// Public endpoints
 	http.HandleFunc("/health", withCORS(handlers.HandleHealth(healthService)))

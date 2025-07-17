@@ -1,4 +1,4 @@
-package jobs
+package services
 
 import (
 	"backend/go-backend/models"

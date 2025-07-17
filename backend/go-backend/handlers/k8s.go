@@ -5,11 +5,11 @@ import (
 	"net/http"
 
 	"backend/go-backend/logger"
-	"backend/go-backend/services/k8s"
+	"backend/go-backend/services"
 )
 
 // Refactored handler: injects K8sService
-func HandleK8sNamespaces(k8sService k8s.K8sService) http.HandlerFunc {
+func HandleK8sNamespaces(k8sService services.K8sService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[K8s] HandleK8sNamespaces called from ", r.RemoteAddr)
 		namespaces, err := k8sService.ListNamespaces()
@@ -24,11 +24,11 @@ func HandleK8sNamespaces(k8sService k8s.K8sService) http.HandlerFunc {
 	}
 }
 
-func HandleScanK8sLogs(k8sService k8s.K8sService) http.HandlerFunc {
+func HandleScanK8sLogs(k8sService services.K8sService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[K8s] HandleScanK8sLogs called from ", r.RemoteAddr)
 		w.Header().Set("Content-Type", "application/json")
-		var req k8s.ScanLogsRequest
+		var req services.ScanLogsRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			logger.Logger.Warn("[K8s] Invalid scan request: ", err)
 			http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -36,7 +36,7 @@ func HandleScanK8sLogs(k8sService k8s.K8sService) http.HandlerFunc {
 		}
 		results, err := k8sService.ScanLogs(req)
 		if err != nil {
-			if err == k8s.ErrInvalidScanRequest {
+			if err == services.ErrInvalidScanRequest {
 				logger.Logger.Warn("[K8s] Missing namespace in scan request")
 				http.Error(w, "Missing namespace", http.StatusBadRequest)
 				return
@@ -53,14 +53,14 @@ func HandleScanK8sLogs(k8sService k8s.K8sService) http.HandlerFunc {
 }
 
 // GET /k8s-pods?cluster=...&namespace=...
-func HandleK8sPods(k8sService k8s.K8sService) http.HandlerFunc {
+func HandleK8sPods(k8sService services.K8sService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[K8s] HandleK8sPods called from ", r.RemoteAddr)
 		cluster := r.URL.Query().Get("cluster")
 		namespace := r.URL.Query().Get("namespace")
 		podNames, err := k8sService.ListPods(cluster, namespace)
 		if err != nil {
-			if err == k8s.ErrInvalidPodRequest {
+			if err == services.ErrInvalidPodRequest {
 				logger.Logger.Warn("[K8s] Missing cluster or namespace in pods request")
 				http.Error(w, "Missing cluster or namespace", http.StatusBadRequest)
 				return

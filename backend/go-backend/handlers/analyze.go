@@ -6,11 +6,11 @@ import (
 
 	"backend/go-backend/logger"
 	"backend/go-backend/models"
-	"backend/go-backend/services/analyze"
+	"backend/go-backend/services"
 )
 
 // Refactored handler: injects AnalyzeService
-func HandleAnalyze(analyzeService analyze.AnalyzeService) http.HandlerFunc {
+func HandleAnalyze(analyzeService services.AnalyzeService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Analyze] Analyze endpoint called from ", r.RemoteAddr)
 		var req models.LogRequest

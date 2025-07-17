@@ -1,4 +1,4 @@
-package metrics
+package services
 
 import (
 	"encoding/json"

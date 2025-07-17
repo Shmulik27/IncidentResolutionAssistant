@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"backend/go-backend/logger"
-	"backend/go-backend/services/jobs"
+	"backend/go-backend/services"
 
 	"firebase.google.com/go/v4/auth"
 )
@@ -20,7 +20,7 @@ func getUserID(r *http.Request) (string, bool) {
 }
 
 // POST /api/log-scan-jobs
-func HandleCreateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
+func HandleCreateLogScanJob(jobService services.JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Jobs] CreateLogScanJob called from", r.RemoteAddr)
 		userID, ok := getUserID(r)
@@ -29,7 +29,7 @@ func HandleCreateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		var req jobs.CreateJobRequest
+		var req services.CreateJobRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			logger.Logger.Warn("[Jobs] Invalid create job request:", err)
 			http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -37,7 +37,7 @@ func HandleCreateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 		}
 		job, err := jobService.CreateLogScanJob(userID, req)
 		if err != nil {
-			if err == jobs.ErrInvalidJobRequest {
+			if err == services.ErrInvalidJobRequest {
 				http.Error(w, "Missing namespace or invalid interval", http.StatusBadRequest)
 				return
 			}
@@ -52,7 +52,7 @@ func HandleCreateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 }
 
 // GET /api/log-scan-jobs
-func HandleListLogScanJobs(jobService jobs.JobService) http.HandlerFunc {
+func HandleListLogScanJobs(jobService services.JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Jobs] ListLogScanJobs called from", r.RemoteAddr)
 		userID, ok := getUserID(r)
@@ -74,7 +74,7 @@ func HandleListLogScanJobs(jobService jobs.JobService) http.HandlerFunc {
 }
 
 // DELETE /api/log-scan-jobs/{id}
-func HandleDeleteLogScanJob(jobService jobs.JobService) http.HandlerFunc {
+func HandleDeleteLogScanJob(jobService services.JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Jobs] DeleteLogScanJob called from", r.RemoteAddr)
 		userID, ok := getUserID(r)
@@ -91,7 +91,7 @@ func HandleDeleteLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 		jobID := parts[3]
 		err := jobService.DeleteLogScanJob(userID, jobID)
 		if err != nil {
-			if err == jobs.ErrJobNotFound {
+			if err == services.ErrJobNotFound {
 				logger.Logger.Warn("[Jobs] Job not found for delete: jobID=", jobID)
 				http.Error(w, "Job not found", http.StatusNotFound)
 				return
@@ -106,7 +106,7 @@ func HandleDeleteLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 }
 
 // PUT /api/log-scan-jobs/{id}
-func HandleUpdateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
+func HandleUpdateLogScanJob(jobService services.JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Jobs] UpdateLogScanJob called from", r.RemoteAddr)
 		userID, ok := getUserID(r)
@@ -121,7 +121,7 @@ func HandleUpdateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 			return
 		}
 		jobID := parts[3]
-		var req jobs.UpdateJobRequest
+		var req services.UpdateJobRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			logger.Logger.Warn("[Jobs] Invalid update job request:", err)
 			http.Error(w, "Invalid request", http.StatusBadRequest)
@@ -129,11 +129,11 @@ func HandleUpdateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 		}
 		jobList, err := jobService.UpdateLogScanJob(userID, jobID, req)
 		if err != nil {
-			if err == jobs.ErrInvalidJobRequest {
+			if err == services.ErrInvalidJobRequest {
 				http.Error(w, "Missing namespace or invalid interval", http.StatusBadRequest)
 				return
 			}
-			if err == jobs.ErrJobNotFound {
+			if err == services.ErrJobNotFound {
 				logger.Logger.Warn("[Jobs] Job not found for update: jobID=", jobID)
 				http.Error(w, "Job not found", http.StatusNotFound)
 				return
@@ -149,7 +149,7 @@ func HandleUpdateLogScanJob(jobService jobs.JobService) http.HandlerFunc {
 }
 
 // GET /api/incidents/recent
-func HandleGetRecentIncidents(jobService jobs.JobService) http.HandlerFunc {
+func HandleGetRecentIncidents(jobService services.JobService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Incidents] GetRecentIncidents called from", r.RemoteAddr)
 		userID, ok := getUserID(r)

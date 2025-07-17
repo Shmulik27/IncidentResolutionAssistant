@@ -8,19 +8,19 @@ import (
 	"time"
 )
 
-func mockFullPipelineRunLogScanJob(userID string, job models.Job) ([]models.Incident, error) {
-	return []models.Incident{{
-		ID:        "inc-pipeline-" + job.ID,
-		UserID:    userID,
-		JobID:     job.ID,
-		Timestamp: time.Now(),
-		LogLine:   "ERROR pipeline test log",
-		Analysis:  "{\"result\":\"fail\"}",
-		RootCause: "{\"root\":\"bad config\"}",
-		Knowledge: "{\"kb\":\"restart\"}",
-		Action:    "{\"action\":\"restart pod\"}",
-	}}, nil
-}
+// func mockFullPipelineRunLogScanJob(userID string, job models.Job) ([]models.Incident, error) {
+// 	return []models.Incident{{
+// 		ID:        "inc-pipeline-" + job.ID,
+// 		UserID:    userID,
+// 		JobID:     job.ID,
+// 		Timestamp: time.Now(),
+// 		LogLine:   "ERROR pipeline test log",
+// 		Analysis:  "{\"result\":\"fail\"}",
+// 		RootCause: "{\"root\":\"bad config\"}",
+// 		Knowledge: "{\"kb\":\"restart\"}",
+// 		Action:    "{\"action\":\"restart pod\"}",
+// 	}}, nil
+// }
 
 func TestFullLogScanPipelineIntegration(t *testing.T) {
 	utils.ResetSchedulerForTest()

@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"backend/go-backend/logger"
-	"backend/go-backend/services/health"
+	"backend/go-backend/services"
 	"encoding/json"
 	"net/http"
 )
 
 // Refactored handler: injects HealthService
-func HandleHealth(healthService health.HealthService) http.HandlerFunc {
+func HandleHealth(healthService services.HealthService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Logger.Info("[Health] Health check endpoint hit from ", r.RemoteAddr)
 		w.Header().Set("Content-Type", "application/json")

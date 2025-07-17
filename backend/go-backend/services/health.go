@@ -1,4 +1,4 @@
-package health
+package services
 
 // HealthService abstracts health check operations for handlers
 type HealthService interface {
