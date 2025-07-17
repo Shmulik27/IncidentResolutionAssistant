@@ -287,7 +287,13 @@ const K8sLogScanner = () => {
     setJobError('');
     try {
       const jobs = await api.listLogScanJobs();
-      setJobs(jobs);
+      // Map snake_case to camelCase for frontend
+      setJobs(jobs.map(job => ({
+        ...job,
+        createdAt: job.created_at,
+        lastRun: job.last_run,
+        logLevels: job.log_levels,
+      })));
     } catch (err) {
       setJobError('Failed to load jobs: ' + err.message);
     } finally {
@@ -316,7 +322,7 @@ const K8sLogScanner = () => {
     try {
       const job = {
         name: jobForm.name,
-        namespace: jobForm.namespace,
+        namespace: selectedNamespaces[0], // <-- use the actual selected namespace!
         log_levels: jobForm.logLevels,
         interval: parseInt(jobForm.interval, 10) * 60,
         pods: jobForm.pods,
@@ -565,7 +571,7 @@ const K8sLogScanner = () => {
                     try {
                       await api.updateLogScanJob(editingJobId, {
                         name: jobForm.name,
-                        namespace: jobForm.namespace,
+                        namespace: selectedNamespaces[0], // <-- use the actual selected namespace!
                         log_levels: jobForm.logLevels,
                         interval: parseInt(jobForm.interval, 10) * 60,
                         pods: jobForm.pods,
