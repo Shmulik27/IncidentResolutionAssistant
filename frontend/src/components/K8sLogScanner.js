@@ -627,14 +627,20 @@ const K8sLogScanner = () => {
         <CardContent>
           <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
             <Typography variant="h6">Scheduled Log Scan Jobs</Typography>
-            {!showJobForm && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowJobForm(true)}>
-                Create New Job
+            <Box display="flex" alignItems="center" gap={1}>
+              <Button variant="outlined" startIcon={<RefreshIcon />} onClick={fetchJobs} disabled={jobLoading}>
+                Refresh
               </Button>
-            )}
+              {!showJobForm && (
+                <Button variant="contained" startIcon={<AddIcon />} onClick={() => setShowJobForm(true)}>
+                  Create New Job
+                </Button>
+              )}
+            </Box>
           </Box>
           {jobError && <Alert severity="error" sx={{ mb: 2 }}>{jobError}</Alert>}
           {jobLoading && <Box display="flex" alignItems="center" gap={1}><CircularProgress size={20} /> Loading jobs...</Box>}
+          {/* Pagination could be added here for large job lists */}
           <Grid container spacing={2}>
             {Array.isArray(jobs) && jobs.length > 0 ? jobs.map(job => (
               <Grid item xs={12} md={6} key={job.id}>

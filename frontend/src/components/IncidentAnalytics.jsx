@@ -19,7 +19,10 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel
+  InputLabel,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails
 } from '@mui/material';
 import {
   Refresh,
@@ -51,7 +54,7 @@ import {
 } from 'recharts';
 import { api } from '../services/api';
 
-const IncidentAnalytics = () => {
+const IncidentAnalytics = ({ active }) => {
   const [analytics, setAnalytics] = useState({
     incidents: [],
     trends: [],
@@ -150,6 +153,13 @@ const IncidentAnalytics = () => {
       setRecentLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (active) {
+      fetchRecentIncidents();
+    }
+    // eslint-disable-next-line
+  }, [active]);
 
   // Real-time updates for metrics (demo: only update metrics, not incident list)
   useEffect(() => {
@@ -442,49 +452,6 @@ const IncidentAnalytics = () => {
         </Grid>
       </Grid>
 
-      {/* Recent Incidents Section */}
-      <Box mt={4} mb={2}>
-        <Typography variant="h5" gutterBottom>
-          Recent Incidents (from Scheduled Log Scan Jobs)
-        </Typography>
-        {recentLoading ? (
-          <CircularProgress />
-        ) : recentError ? (
-          <Alert severity="error">{recentError}</Alert>
-        ) : !Array.isArray(recentIncidents) || recentIncidents.length === 0 ? (
-          <Alert severity="info">No recent incidents found.</Alert>
-        ) : (
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Timestamp</TableCell>
-                  <TableCell>Job</TableCell>
-                  <TableCell>Log Line</TableCell>
-                  <TableCell>Analysis</TableCell>
-                  <TableCell>Root Cause</TableCell>
-                  <TableCell>Knowledge</TableCell>
-                  <TableCell>Action</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Array.isArray(recentIncidents) && recentIncidents.map(inc => (
-                  <TableRow key={inc.id}>
-                    <TableCell>{new Date(inc.timestamp).toLocaleString()}</TableCell>
-                    <TableCell>{inc.job_id || inc.jobId || ''}</TableCell>
-                    <TableCell style={{ maxWidth: 300, whiteSpace: 'pre-wrap' }}>{inc.log_line || inc.logLine}</TableCell>
-                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.analysis}</pre></TableCell>
-                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.root_cause}</pre></TableCell>
-                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.knowledge}</pre></TableCell>
-                    <TableCell><pre style={{ maxWidth: 200, whiteSpace: 'pre-wrap' }}>{inc.action}</pre></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
-      </Box>
-
       {/* Recent Incidents Table */}
       <Box sx={{ width: '100%', overflowX: 'auto', mb: 3 }}>
         <Card>
@@ -545,3 +512,158 @@ const IncidentAnalytics = () => {
 };
 
 export default IncidentAnalytics; 
+
+export function RecentIncidentsDetails() {
+  const [recentIncidents, setRecentIncidents] = useState([]);
+  const [recentLoading, setRecentLoading] = useState(true);
+  const [recentError, setRecentError] = useState(null);
+  const [jobs, setJobs] = useState([]);
+
+  function safeParse(str) {
+    try { return JSON.parse(str); } catch { return str; }
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setRecentLoading(true);
+      setRecentError(null);
+      try {
+        const [incidents, jobsList] = await Promise.all([
+          api.getRecentIncidents(),
+          api.listLogScanJobs()
+        ]);
+        setRecentIncidents(
+          incidents.map(inc => ({
+            ...inc,
+            analysisObj: safeParse(inc.analysis),
+            rootCauseObj: safeParse(inc.root_cause),
+            knowledgeObj: safeParse(inc.knowledge),
+            actionObj: safeParse(inc.action),
+          }))
+        );
+        setJobs(jobsList);
+      } catch (err) {
+        setRecentError('Failed to fetch recent incidents or jobs: ' + err.message);
+      } finally {
+        setRecentLoading(false);
+      }
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 300000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Helper to get job info by job_id
+  const getJobInfo = (jobId) => jobs.find(j => j.id === jobId) || {};
+
+  return (
+    <Box mt={4} mb={2}>
+      <Typography variant="h5" gutterBottom>
+        Recent Incidents details
+      </Typography>
+      {recentLoading ? (
+        <CircularProgress />
+      ) : recentError ? (
+        <Alert severity="error">{recentError}</Alert>
+      ) : !Array.isArray(recentIncidents) || recentIncidents.length === 0 ? (
+        <Alert severity="info">No recent incidents found.</Alert>
+      ) : (
+        <>
+          {/* Table view */}
+          <TableContainer component={Paper} sx={{ mb: 3 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Title</TableCell>
+                  <TableCell>Service</TableCell>
+                  <TableCell>Severity</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Category</TableCell>
+                  <TableCell>Created</TableCell>
+                  <TableCell>Resolution Time</TableCell>
+                  <TableCell>Analysis Detail</TableCell>
+                  <TableCell>Root Cause</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {recentIncidents.map((item, idx) => (
+                  <TableRow key={item.id || idx}>
+                    <TableCell>{item.title}</TableCell>
+                    <TableCell>{item.service}</TableCell>
+                    <TableCell>{item.severity}</TableCell>
+                    <TableCell>{item.status}</TableCell>
+                    <TableCell>{item.category}</TableCell>
+                    <TableCell>{item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}</TableCell>
+                    <TableCell>{item.resolution_time ? item.resolution_time : 'N/A'}</TableCell>
+                    <TableCell>{item.analysisObj?.detail || ''}</TableCell>
+                    <TableCell>{item.rootCauseObj?.root_cause || ''}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          {/* Accordion view */}
+          <Box className="scan-results" sx={{ background: '#f8f9fa', p: 2, borderRadius: 2, borderLeft: '4px solid #28a745' }}>
+            {recentIncidents.map((item, idx) => {
+              const jobInfo = getJobInfo(item.job_id || item.jobId);
+              return (
+                <Accordion key={item.id || idx} sx={{ mb: 2 }}>
+                  <AccordionSummary expandIcon={<TrendingUp />}>
+                    <span style={{ fontFamily: 'monospace', fontWeight: 500, color: '#007bff', background: '#e3f2fd', padding: '2px 8px', borderRadius: 4 }}>
+                      {item.log_line || item.logLine}
+                    </span>
+                  </AccordionSummary>
+                  <AccordionDetails>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Title:</strong> {item.title}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Service:</strong> {item.service}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Severity:</strong> {item.severity}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Status:</strong> {item.status}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Category:</strong> {item.category}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Created:</strong> {item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Resolution Time:</strong> {item.resolution_time ? item.resolution_time : 'N/A'}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Log Analysis:</strong>
+                      <pre style={{ maxWidth: 400, whiteSpace: 'pre-wrap' }}>{JSON.stringify(item.analysisObj, null, 2)}</pre>
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Root Cause Prediction:</strong>
+                      <pre style={{ maxWidth: 400, whiteSpace: 'pre-wrap' }}>{JSON.stringify(item.rootCauseObj, null, 2)}</pre>
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Knowledge Base Search:</strong>
+                      <pre style={{ maxWidth: 400, whiteSpace: 'pre-wrap' }}>{JSON.stringify(item.knowledgeObj, null, 2)}</pre>
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Action Recommendations:</strong>
+                      <pre style={{ maxWidth: 400, whiteSpace: 'pre-wrap' }}>{JSON.stringify(item.actionObj, null, 2)}</pre>
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Job:</strong> {item.job_id || item.jobId || ''} {jobInfo.name ? `(${jobInfo.name})` : ''}
+                    </div>
+                    <div style={{ marginBottom: 12 }}>
+                      <strong>Namespace:</strong> {jobInfo.namespace || ''}
+                    </div>
+                  </AccordionDetails>
+                </Accordion>
+              );
+            })}
+          </Box>
+        </>
+      )}
+    </Box>
+  );
+} 

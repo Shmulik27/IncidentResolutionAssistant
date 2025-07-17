@@ -28,4 +28,11 @@ type Incident struct {
 	RootCause string    `json:"root_cause"`
 	Knowledge string    `json:"knowledge"`
 	Action    string    `json:"action"`
+	// New fields for UI
+	Title          string  `json:"title"`
+	Service        string  `json:"service"`
+	Severity       string  `json:"severity"`
+	Status         string  `json:"status"`
+	Category       string  `json:"category"`
+	ResolutionTime float64 `json:"resolution_time"`
 }

@@ -242,16 +242,41 @@ func runLogScanJobImpl(userID string, job models.Job) ([]models.Incident, error)
 			}
 		}
 		// Create Incident
+		title := job.Name
+		service := job.Namespace
+		severity := ""
+		if strings.Contains(logLine, "CRITICAL") {
+			severity = "Critical"
+		} else if strings.Contains(logLine, "ERROR") {
+			severity = "High"
+		} else if strings.Contains(logLine, "WARN") {
+			severity = "Medium"
+		} else if strings.Contains(logLine, "INFO") {
+			severity = "Low"
+		}
+		status := "Open"
+		category := "General"
+		if analyzeResult["category"] != nil {
+			category = toString(map[string]interface{}{"category": analyzeResult["category"]})
+		}
+		created := time.Now()
+		resolutionTime := 0.0 // Not resolved yet
 		incident := models.Incident{
-			ID:        uuid.New().String(),
-			UserID:    userID,
-			JobID:     job.ID,
-			Timestamp: time.Now(),
-			LogLine:   logLine,
-			Analysis:  toString(analyzeResult),
-			RootCause: toString(predictResult),
-			Knowledge: toString(kbResult),
-			Action:    toString(recResult),
+			ID:             uuid.New().String(),
+			UserID:         userID,
+			JobID:          job.ID,
+			Timestamp:      created,
+			LogLine:        logLine,
+			Analysis:       toString(analyzeResult),
+			RootCause:      toString(predictResult),
+			Knowledge:      toString(kbResult),
+			Action:         toString(recResult),
+			Title:          title,
+			Service:        service,
+			Severity:       severity,
+			Status:         status,
+			Category:       category,
+			ResolutionTime: resolutionTime,
 		}
 		incidents = append(incidents, incident)
 	}
