@@ -3,8 +3,8 @@
 import logging
 from fastapi import FastAPI, Response
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-from app.logic import recommend_action_logic
-from app.models import RecommendRequest, RecommendResponse
+from .logic import recommend_action_logic
+from .models import RecommendRequest, RecommendResponse
 
 app = FastAPI(
     title="Action Recommender Service",
@@ -49,7 +49,7 @@ def recommend_action(request: RecommendRequest):
         ERRORS_TOTAL.labels(endpoint="/recommend").inc()
         logger.error("ValueError in /recommend: %s", e)
         return {"error": str(e)}
-    except Exception as e:
+    except (TypeError, AttributeError) as e:
         ERRORS_TOTAL.labels(endpoint="/recommend").inc()
-        logger.error("Unexpected error in /recommend: %s", e)
+        logger.error("Type/Attribute error in /recommend: %s", e)
         return {"error": str(e)} 

@@ -1,7 +1,7 @@
 fastapi
-uvicorn
 prometheus_client
-pytest
-httpx
-pydantic 
-scikit-learn 
+scikit-learn
+numpy
+pydantic
+requests
+pytest 
