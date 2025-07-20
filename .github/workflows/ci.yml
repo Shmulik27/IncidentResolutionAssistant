@@ -93,7 +93,7 @@ jobs:
       - name: Test
         run: |
           cd backend/python-services/${{ matrix.service }}
-          pytest
+          PYTHONPATH=../ pytest
 
       - name: Build Docker image
         run: |
