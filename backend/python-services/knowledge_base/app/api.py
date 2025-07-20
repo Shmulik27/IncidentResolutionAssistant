@@ -3,7 +3,7 @@ API endpoints for the Knowledge Base Service.
 Provides vector search over incident knowledge base using FAISS and sentence transformers.
 """
 
-from typing import List
+from typing import List, cast
 from fastapi import FastAPI
 from pydantic import BaseModel
 import faiss
@@ -75,7 +75,7 @@ def search_incidents(request: SearchRequest) -> list[SearchResult]:
         if not request.query:
             logger.info("No query provided in request.")
             return []
-        query_emb = MODEL.encode([str(request.query)], convert_to_numpy=True)
+        query_emb = MODEL.encode(cast(list[str], [str(request.query)]), convert_to_numpy=True)
         D, indices = index.search(query_emb, request.top_k)  # type: ignore
         results = []
         for idx, dist in zip(indices[0], D[0]):
