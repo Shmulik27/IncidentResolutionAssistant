@@ -3,6 +3,7 @@ from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from .logic import analyze_logs_logic
 from .models import LogRequest
+from typing import Any
 
 app = FastAPI(
     title="Log Analyzer Service",
@@ -21,13 +22,13 @@ logger = setup_logging("log_analyzer")
 add_metrics_endpoint(app, generate_latest, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
     logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.post("/analyze")
-def analyze_logs(request: LogRequest):
+def analyze_logs(request: LogRequest) -> dict[str, Any]:
     REQUESTS_TOTAL.labels(endpoint="/analyze").inc()
     try:
         logger.info(f"Received {len(request.logs)} log lines for analysis.")

@@ -11,6 +11,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 import scipy.sparse as sparse
+from typing import Any
 
 __all__ = ["analyze_logs_logic"]
 
@@ -48,7 +49,7 @@ iso_forest.fit(X_train_dense)
 logger = logging.getLogger("log_analyzer.logic")
 
 
-def analyze_logs_logic(logs):
+def analyze_logs_logic(logs: list[str]) -> dict[str, Any]:
     """
     Analyze logs for anomalies using ML, keyword, frequency, and entity-based methods.
     Returns a dictionary with anomaly details.
