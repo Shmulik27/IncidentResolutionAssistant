@@ -80,6 +80,11 @@ jobs:
             python -m pip install -r backend/python-services/${{ matrix.service }}/requirements.txt
           fi
 
+      - name: Install spaCy English model (log_analyzer only)
+        if: matrix.service == 'log_analyzer'
+        run: |
+          python -m spacy download en_core_web_sm
+
       - name: Lint
         run: |
           cd backend/python-services/${{ matrix.service }}

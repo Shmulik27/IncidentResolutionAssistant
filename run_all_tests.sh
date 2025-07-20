@@ -29,7 +29,7 @@ run_test "Python Linter (ruff)" "ruff check $(git ls-files '*.py')"
 run_test "Python Type Checker (mypy)" "mypy --explicit-package-bases backend/python-services"
 
 # Python microservices
-run_test "Python Log Analyzer Tests" "(cd backend/python-services/log_analyzer && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"
+run_test "Python Log Analyzer Tests" "(cd backend/python-services/log_analyzer && source venv/bin/activate && python -m spacy download en_core_web_sm && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"
 run_test "Python Root Cause Predictor Tests" "(cd backend/python-services/root_cause_predictor && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"
 run_test "Python Action Recommender Tests" "(cd backend/python-services/action_recommender && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"
 run_test "Python Knowledge Base/Vector Search Tests" "(cd backend/python-services/knowledge_base && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"
