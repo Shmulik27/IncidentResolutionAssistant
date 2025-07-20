@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
 from prometheus_client import Counter, CONTENT_TYPE_LATEST, generate_latest
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from app.logic import recommend_action_logic
