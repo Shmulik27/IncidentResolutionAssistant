@@ -1,36 +1,25 @@
 from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import faiss
 from sentence_transformers import SentenceTransformer
 import numpy as np
-import logging
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
+from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 
 app = FastAPI(
     title="Knowledge Base Service",
     description="Provides vector search capabilities over the incident knowledge base.",
     version="1.0.0"
 )
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors(app)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('kb_search_requests_total', 'Total requests to knowledge base search', ['endpoint'])
 ERRORS_TOTAL = Counter('kb_search_errors_total', 'Total errors in knowledge base search', ['endpoint'])
 SEARCHES_TOTAL = Counter('kb_search_searches_total', 'Total searches made', ['endpoint'])
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("vector_search")
+logger = setup_logging("vector_search")
 
 # Example in-memory knowledge base
 INCIDENTS = [
@@ -62,9 +51,7 @@ class SearchResult(BaseModel):
     resolution: str
     score: float
 
-@app.get("/metrics")
-def metrics():
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+add_metrics_endpoint(app, generate_latest, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
 def health():

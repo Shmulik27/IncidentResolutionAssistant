@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-import logging
+from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from app.logic import analyze_logs_logic
 from app.models import LogRequest
 
@@ -10,27 +9,16 @@ app = FastAPI(
     description="Analyzes logs and extracts relevant information for incident resolution.",
     version="1.0.0"
 )
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors(app)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('log_analyzer_requests_total', 'Total requests to log analyzer', ['endpoint'])
 ERRORS_TOTAL = Counter('log_analyzer_errors_total', 'Total errors in log analyzer', ['endpoint'])
 ANOMALIES_TOTAL = Counter('log_analyzer_anomalies_total', 'Total anomalies detected', ['endpoint'])
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("log_analyzer")
+logger = setup_logging("log_analyzer")
 
-@app.get("/metrics")
-def metrics():
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+add_metrics_endpoint(app, generate_latest, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
 def health():

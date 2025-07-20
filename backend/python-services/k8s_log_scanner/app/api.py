@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Response, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 import logging
@@ -17,28 +16,14 @@ import time
 import uuid
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_429_TOO_MANY_REQUESTS
 import time as pytime
+from common.fastapi_utils import add_cors, setup_logging
 
 app = FastAPI(
     title="Kubernetes Log Scanner Service",
     description="Scans logs from EKS and GKE Kubernetes clusters for incident analysis.",
     version="1.0.0"
 )
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001",
-        "http://localhost:3002",
-        "http://127.0.0.1:3002"
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors(app)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('k8s_scanner_requests_total', 'Total requests to k8s scanner', ['endpoint'])
@@ -49,9 +34,7 @@ VALIDATION_ERRORS_TOTAL = Counter('k8s_scanner_validation_errors_total', 'Total 
 SCAN_LATENCY = Histogram('k8s_scanner_scan_latency_seconds', 'Latency for log scan', ['endpoint'])
 ANALYSIS_LATENCY = Histogram('k8s_scanner_analysis_latency_seconds', 'Latency for incident analysis', ['endpoint'])
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("k8s_scanner")
+logger = setup_logging("k8s_scanner")
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 DEFAULT_CONFIG = {

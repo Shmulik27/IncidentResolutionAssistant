@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import CONTENT_TYPE_LATEST
-import logging
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from .models import PredictRequest
 from .logic import predict_root_cause
 
@@ -11,24 +10,12 @@ app = FastAPI(
     description="Predicts the root cause of incidents based on log analysis.",
     version="1.0.0"
 )
+add_cors(app)
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+logger = setup_logging("root_cause_predictor")
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("root_cause_predictor")
-
-@app.get("/metrics")
-def metrics():
-    from .logic import get_metrics
-    return Response(get_metrics(), media_type=CONTENT_TYPE_LATEST)
+from .logic import get_metrics
+add_metrics_endpoint(app, get_metrics, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
 def health():

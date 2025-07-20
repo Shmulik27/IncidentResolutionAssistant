@@ -1,7 +1,6 @@
 from fastapi import FastAPI, Response
-from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-import logging
+from prometheus_client import Counter, CONTENT_TYPE_LATEST, generate_latest
+from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from app.logic import recommend_action_logic
 from app.models import RecommendRequest, RecommendResponse
 
@@ -10,27 +9,16 @@ app = FastAPI(
     description="Recommends actions to resolve incidents based on analysis and knowledge base.",
     version="1.0.0"
 )
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors(app)
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter('action_recommender_requests_total', 'Total requests to action recommender', ['endpoint'])
 ERRORS_TOTAL = Counter('action_recommender_errors_total', 'Total errors in action recommender', ['endpoint'])
 RECOMMENDATIONS_TOTAL = Counter('action_recommender_recommendations_total', 'Total recommendations made', ['endpoint', 'action'])
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("action_recommender")
+logger = setup_logging("action_recommender")
 
-@app.get("/metrics")
-def metrics():
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+add_metrics_endpoint(app, generate_latest, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
 def health():

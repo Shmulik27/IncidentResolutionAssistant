@@ -1,6 +1,6 @@
 import logging
 from fastapi import FastAPI, HTTPException, Request, Header, Body
-from fastapi.middleware.cors import CORSMiddleware
+from common.fastapi_utils import add_cors, setup_logging
 from app.logic import load_config, save_config, handle_incident_logic, send_slack_notification, get_github_repo, get_jira_client, verify_signature, github_webhook_logic
 from app.models import IncidentEvent
 import os
@@ -13,14 +13,7 @@ app = FastAPI(
     description="Creates Jira issues for detected incidents and closes them when a fix is merged in GitHub.",
     version="2.0.0"
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+add_cors(app)
 
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GITHUB_REPO = os.getenv("GITHUB_REPO")
@@ -30,7 +23,7 @@ JIRA_TOKEN = os.getenv("JIRA_TOKEN")
 JIRA_PROJECT = os.getenv("JIRA_PROJECT")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
 
-logging.basicConfig(level=logging.INFO)
+logger = setup_logging("incident_integrator")
 
 @app.get("/health")
 def health():

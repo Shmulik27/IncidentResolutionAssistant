@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import K8sLogScanner from '../K8sLogScanner';
 import { api } from '../../services/api';
@@ -28,6 +28,11 @@ describe('K8sLogScanner scheduled jobs', () => {
         ] })
       })
     );
+    if (!api.getScheduledJobs) api.getScheduledJobs = jest.fn();
+    if (!api.createScheduledJob) api.createScheduledJob = jest.fn();
+    if (!api.deleteScheduledJob) api.deleteScheduledJob = jest.fn();
+    if (!api.getK8sNamespaces) api.getK8sNamespaces = jest.fn();
+    if (!api.getK8sPods) api.getK8sPods = jest.fn();
     api.getScheduledJobs.mockResolvedValue([
       {
         id: 'job1',
@@ -40,10 +45,15 @@ describe('K8sLogScanner scheduled jobs', () => {
     ]);
     api.createScheduledJob.mockResolvedValue({ status: 'ok' });
     api.deleteScheduledJob.mockResolvedValue({ status: 'ok' });
+    api.getK8sNamespaces.mockResolvedValue({ namespaces: ['default'] });
+    api.getK8sPods.mockResolvedValue(['pod-1']);
   });
 
   it('renders and creates a new job', async () => {
     renderWithContext(<K8sLogScanner />);
+    // Open the job creation form
+    const createBtn = await screen.findByRole('button', { name: /create new job/i });
+    fireEvent.click(createBtn);
     // Wait for cluster select to appear
     const clusterSelect = await screen.findByLabelText(/cluster/i);
     fireEvent.mouseDown(clusterSelect);
@@ -56,9 +66,9 @@ describe('K8sLogScanner scheduled jobs', () => {
     // Fill in schedule
     fireEvent.change(screen.getByLabelText(/schedule/i), { target: { value: '0 0 * * *' } });
     // Create job
-    const createBtn = screen.getByRole('button', { name: /create job/i });
-    expect(createBtn).not.toBeDisabled();
-    fireEvent.click(createBtn);
+    const createBtn2 = screen.getByRole('button', { name: /create job/i });
+    expect(createBtn2).not.toBeDisabled();
+    fireEvent.click(createBtn2);
     await waitFor(() => expect(api.createScheduledJob).toHaveBeenCalled());
   });
 
@@ -70,7 +80,6 @@ describe('K8sLogScanner scheduled jobs', () => {
     const deleteBtn = screen.getByRole('button', { name: /delete job/i });
     fireEvent.click(deleteBtn);
     await waitFor(() => expect(api.deleteScheduledJob).toHaveBeenCalled());
-    // Notification should be called
     await waitFor(() => expect(mockNotify).toHaveBeenCalled());
   });
 
