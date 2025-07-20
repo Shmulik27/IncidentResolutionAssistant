@@ -39,17 +39,18 @@ jobs:
       - name: Build Docker image
         run: |
           cd backend/go-backend
-          docker build -t yourdockerhubuser/go-backend:${{ github.sha }} .
+          docker build -t ghcr.io/shmulikat/go-backend:${{ github.sha }} .
 
-      - name: Log in to DockerHub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
         run: |
-          docker push yourdockerhubuser/go-backend:${{ github.sha }}
+          docker push ghcr.io/shmulikat/go-backend:${{ github.sha }}
 
   python-services:
     name: Python Services CI
@@ -103,14 +104,15 @@ jobs:
       - name: Build Docker image
         run: |
           cd backend/python-services/${{ matrix.service }}
-          docker build -t yourdockerhubuser/${{ matrix.service }}:${{ github.sha }} .
+          docker build -t ghcr.io/shmulikat/${{ matrix.service }}:${{ github.sha }} .
 
-      - name: Log in to DockerHub
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
         run: |
-          docker push yourdockerhubuser/${{ matrix.service }}:${{ github.sha }} 
+          docker push ghcr.io/shmulikat/${{ matrix.service }}:${{ github.sha }} 
