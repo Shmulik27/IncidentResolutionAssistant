@@ -83,6 +83,7 @@ func main() {
 	metricsService := &services.DefaultMetricsService{}
 	healthService := &services.DefaultHealthService{}
 	analyticsService := &handlers.DefaultAnalyticsService{}
+	configService := &handlers.DefaultConfigService{}
 
 	// Public endpoints
 	http.HandleFunc("/health", withCORS(handlers.HandleHealth(healthService)))
@@ -91,6 +92,17 @@ func main() {
 	http.HandleFunc("/analytics", withCORS(handlers.HandleAnalytics(analyticsService)))
 	http.HandleFunc("/analytics/service-metrics", withCORS(handlers.HandleServiceMetrics(analyticsService)))
 	http.HandleFunc("/analytics/rate-limit", withCORS(handlers.HandleRateLimitData(analyticsService)))
+	http.HandleFunc("/config", withCORS(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.HandleGetConfiguration(configService)(w, r)
+		} else if r.Method == http.MethodPost {
+			handlers.HandleUpdateConfiguration(configService)(w, r)
+		} else if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces(k8sService)))
 	http.HandleFunc("/k8s-pods", withCORS(handlers.HandleK8sPods(k8sService)))
 	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs(k8sService)))

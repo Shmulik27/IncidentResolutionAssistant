@@ -3,6 +3,7 @@ import {
   Box, Typography, TextField, Button, Table, TableBody, TableCell, TableContainer, TableRow, Paper, Grid, Switch, FormControlLabel, Snackbar, Alert, Divider, IconButton, InputAdornment
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
+import { api } from '../services/api';
 
 const FIELD_GROUPS = [
   {
@@ -59,15 +60,15 @@ function Configuration() {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/config')
-      .then(res => res.json())
+    api.getConfiguration()
       .then(data => {
         setConfig(data);
         setEdit({});
         setLoading(false);
       })
-      .catch(() => {
-        setError('Failed to load configuration');
+      .catch((err) => {
+        console.error('Failed to load configuration:', err);
+        setError('Failed to load configuration: ' + err.message);
         setLoading(false);
       });
   }, []);
@@ -85,20 +86,16 @@ function Configuration() {
   const handleSave = () => {
     setSaving(true);
     setError(null);
-    fetch('/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(edit),
-    })
-      .then(res => res.json())
+    api.updateConfiguration(edit)
       .then(data => {
-        setConfig(data.config);
+        setConfig(data.config || data);
         setEdit({});
         setSuccess(true);
         setSaving(false);
       })
-      .catch(() => {
-        setError('Failed to save configuration');
+      .catch((err) => {
+        console.error('Failed to save configuration:', err);
+        setError('Failed to save configuration: ' + err.message);
         setSaving(false);
       });
   };
