@@ -97,17 +97,36 @@ const RealTimeMetrics = () => {
   const fetchRealTimeMetrics = async () => {
     setLoading(true);
     try {
-      // In a real implementation, these would be WebSocket connections or frequent API calls
+      // Fetch service health status
+      const serviceStatuses = await api.getAllServiceStatuses();
+      const serviceMetrics = {};
+      
+      Object.entries(serviceStatuses).forEach(([service, status]) => {
+        serviceMetrics[service] = {
+          status: status.status === 'UP' ? 'UP' : 'DOWN',
+          responseTime: Math.random() * 100 + 50, // Simulate response time
+          requests: Math.floor(Math.random() * 10000) + 5000 // Simulate request count
+        };
+      });
+
       setMetrics({
         system: mockSystemMetrics,
-        services: mockServiceMetrics,
+        services: serviceMetrics,
         performance: generateMockPerformanceData(),
         alerts: mockAlerts
       });
       setError(null);
       setLastUpdated(new Date());
     } catch (err) {
-      setError('Failed to fetch real-time metrics');
+      console.error('Failed to fetch real-time metrics:', err);
+      setError('Failed to fetch real-time metrics: ' + err.message);
+      // Fallback to mock data
+      setMetrics({
+        system: mockSystemMetrics,
+        services: mockServiceMetrics,
+        performance: generateMockPerformanceData(),
+        alerts: mockAlerts
+      });
     } finally {
       setLoading(false);
     }

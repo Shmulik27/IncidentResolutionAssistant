@@ -82,11 +82,15 @@ func main() {
 	analyzeService := &services.DefaultAnalyzeService{}
 	metricsService := &services.DefaultMetricsService{}
 	healthService := &services.DefaultHealthService{}
+	analyticsService := &handlers.DefaultAnalyticsService{}
 
 	// Public endpoints
 	http.HandleFunc("/health", withCORS(handlers.HandleHealth(healthService)))
 	http.Handle("/metrics", withCORS(promhttp.Handler().ServeHTTP))
 	http.HandleFunc("/metrics/stream", withCORS(handlers.MetricsStreamHandler(metricsService)))
+	http.HandleFunc("/analytics", withCORS(handlers.HandleAnalytics(analyticsService)))
+	http.HandleFunc("/analytics/service-metrics", withCORS(handlers.HandleServiceMetrics(analyticsService)))
+	http.HandleFunc("/analytics/rate-limit", withCORS(handlers.HandleRateLimitData(analyticsService)))
 	http.HandleFunc("/k8s-namespaces", withCORS(handlers.HandleK8sNamespaces(k8sService)))
 	http.HandleFunc("/k8s-pods", withCORS(handlers.HandleK8sPods(k8sService)))
 	http.HandleFunc("/scan-k8s-logs", withCORS(handlers.HandleScanK8sLogs(k8sService)))

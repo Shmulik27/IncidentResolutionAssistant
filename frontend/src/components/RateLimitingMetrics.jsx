@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Grid, Card, CardContent, Typography, LinearProgress, Alert, CircularProgress, Button } from '@mui/material';
-import { Speed, Warning, Timeline } from '@mui/icons-material';
+import { Speed, Warning, Timeline, Refresh } from '@mui/icons-material';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { api } from '../services/api';
 
 const mockRateLimitData = {
   currentUsage: 72, // percent
@@ -24,13 +25,29 @@ const RateLimitingMetrics = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const fetchRateLimitData = async () => {
+    setLoading(true);
+    try {
+      const rateLimitData = await api.getRateLimitData();
+      setData(rateLimitData);
+      setError(null);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Failed to fetch rate limit data:', err);
+      setError('Failed to fetch rate limit data: ' + err.message);
+      // Fallback to mock data if API fails
+      setData(mockRateLimitData);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      setData(mockRateLimitData);
-      setLoading(false);
-    }, 500);
+    fetchRateLimitData();
+    const interval = setInterval(fetchRateLimitData, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -42,10 +59,31 @@ const RateLimitingMetrics = () => {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-      <Typography variant="h4" gutterBottom>Rate Limiting & Latency</Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Monitor API rate limiting and latency distribution across the system.
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography variant="h4" gutterBottom>Rate Limiting & Latency</Typography>
+          <Typography variant="body2" color="text.secondary">
+            Monitor API rate limiting and latency distribution across the system.
+            {lastUpdated && (
+              <span> • Last updated: {lastUpdated.toLocaleTimeString()}</span>
+            )}
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          onClick={fetchRateLimitData}
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={20} /> : <Refresh />}
+        >
+          {loading ? 'Refreshing...' : 'Refresh'}
+        </Button>
+      </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
       <Grid container spacing={3} mb={3}>
         <Grid item xs={12} sm={6} md={4}>
           <Card>

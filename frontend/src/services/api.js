@@ -190,5 +190,36 @@ export const api = {
       { headers: token ? { Authorization: `Bearer ${token}` } : {} }
     );
     return response.data;
+  },
+
+  // Analytics endpoints
+  async getAnalyticsData() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching analytics data:', error);
+      throw new Error('Failed to fetch analytics data');
+    }
+  },
+
+  async getServiceMetrics() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/service-metrics`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching service metrics:', error);
+      throw new Error('Failed to fetch service metrics');
+    }
+  },
+
+  async getRateLimitData() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/analytics/rate-limit`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching rate limit data:', error);
+      throw new Error('Failed to fetch rate limit data');
+    }
   }
 }; 

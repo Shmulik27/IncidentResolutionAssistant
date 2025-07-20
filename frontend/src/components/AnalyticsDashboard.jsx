@@ -175,20 +175,30 @@ const AnalyticsDashboard = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      // In a real implementation, these would be API calls
-      // For now, using mock data
+      // Fetch real analytics data from backend
+      const data = await api.getAnalyticsData();
+      setAnalytics({
+        serviceMetrics: data.serviceMetrics || {},
+        performanceData: data.performanceData || [],
+        incidentTrends: data.incidentTrends || [],
+        resourceUsage: data.resourceUsage || {},
+        k8sMetrics: data.k8sMetrics || {},
+        testResults: data.testResults || { passed: 0, failed: 0, skipped: 0 }
+      });
+      setError(null);
+      setLastUpdated(new Date());
+    } catch (err) {
+      console.error('Failed to fetch analytics data:', err);
+      setError('Failed to fetch analytics data: ' + err.message);
+      // Fallback to mock data if API fails
       setAnalytics({
         serviceMetrics: mockServiceMetrics,
         performanceData: mockPerformanceData,
         incidentTrends: mockIncidentTrends,
         resourceUsage: mockResourceUsage,
         k8sMetrics: mockK8sMetrics,
-        testResults: { passed: 10, failed: 2, skipped: 1 } // Mock test results
+        testResults: { passed: 10, failed: 2, skipped: 1 }
       });
-      setError(null);
-      setLastUpdated(new Date());
-    } catch (err) {
-      setError('Failed to fetch analytics data');
     } finally {
       setLoading(false);
     }
