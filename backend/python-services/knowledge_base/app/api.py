@@ -75,7 +75,7 @@ def search_incidents(request: SearchRequest) -> list[SearchResult]:
         if not request.query:
             logger.info("No query provided in request.")
             return []
-        query_emb = MODEL.encode([request.query], convert_to_numpy=True)
+        query_emb = MODEL.encode([str(request.query)], convert_to_numpy=True)
         D, indices = index.search(query_emb, request.top_k)  # type: ignore
         results = []
         for idx, dist in zip(indices[0], D[0]):
