@@ -118,7 +118,7 @@ model = LogisticRegression(max_iter=1000)
 model.fit(X_train, y_train)
 
 
-def predict_root_cause(request: PredictRequest):
+def predict_root_cause(request: PredictRequest) -> dict[str, str]:
     """
     Predict the root cause of an incident based on the provided logs.
     Returns a dictionary with the predicted root cause or error message.
@@ -147,14 +147,14 @@ def predict_root_cause(request: PredictRequest):
         return {"error": str(e)}
 
 
-def increment_requests_total(endpoint: str):
+def increment_requests_total(endpoint: str) -> None:
     """
     Increment the Prometheus counter for total requests to a given endpoint.
     """
     REQUESTS_TOTAL.labels(endpoint=endpoint).inc()
 
 
-def get_metrics():
+def get_metrics() -> bytes:
     """
     Return the latest Prometheus metrics for the service.
     """

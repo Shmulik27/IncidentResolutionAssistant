@@ -6,6 +6,8 @@ Provides action recommendations based on incident queries.
 import logging
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from typing import Any
+from app.models import RecommendRequest
 
 logger = logging.getLogger("action_recommender.logic")
 
@@ -33,7 +35,7 @@ vectorizer.fit(_dummy_X)
 model.fit(vectorizer.transform(_dummy_X), _dummy_y)
 
 
-def recommend_action_logic(request):
+def recommend_action_logic(request: RecommendRequest) -> Any:
     """
     Recommend an action based on the request query.
     Returns a RecommendResponse object with the action.

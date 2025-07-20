@@ -34,12 +34,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("action_recommender")
 
 @app.get("/metrics")
-def metrics():
+def metrics() -> Response:
     """Return Prometheus metrics."""
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 @app.post("/recommend", response_model=RecommendResponse)
-def recommend_action(request: RecommendRequest):
+def recommend_action(request: RecommendRequest) -> RecommendResponse:
     """Recommend an action based on the request."""
     REQUESTS_TOTAL.labels(endpoint="/recommend").inc()
     try:
@@ -50,10 +50,10 @@ def recommend_action(request: RecommendRequest):
     except ValueError as e:
         ERRORS_TOTAL.labels(endpoint="/recommend").inc()
         logger.error("ValueError in /recommend: %s", e)
-        return {"error": str(e)}
+        return RecommendResponse(action="error")
     except Exception as e:
         ERRORS_TOTAL.labels(endpoint="/recommend").inc()
         logger.error("Unexpected error in /recommend: %s", e)
-        return {"error": str(e)}
+        return RecommendResponse(action="error")
 
 __all__ = ["recommend_action"] 

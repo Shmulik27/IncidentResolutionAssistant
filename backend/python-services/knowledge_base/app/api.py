@@ -60,14 +60,14 @@ class SearchResult(BaseModel):
 add_metrics_endpoint(app, generate_latest, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
     """Health check endpoint for the service."""
     logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.post("/search", response_model=List[SearchResult])
-def search_incidents(request: SearchRequest):
+def search_incidents(request: SearchRequest) -> list[SearchResult]:
     """Search the knowledge base for incidents similar to the query."""
     REQUESTS_TOTAL.labels(endpoint="/search").inc()
     try:
@@ -76,9 +76,9 @@ def search_incidents(request: SearchRequest):
             logger.info("No query provided in request.")
             return []
         query_emb = MODEL.encode([request.query], convert_to_numpy=True)
-        D, I = index.search(query_emb, request.top_k)  # type: ignore
+        D, indices = index.search(query_emb, request.top_k)  # type: ignore
         results = []
-        for idx, dist in zip(I[0], D[0]):
+        for idx, dist in zip(indices[0], D[0]):
             incident = INCIDENTS[idx]
             logger.info(f"Match: {incident['text']} (score={dist})")
             results.append(SearchResult(

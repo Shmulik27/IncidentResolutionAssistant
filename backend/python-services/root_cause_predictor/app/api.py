@@ -19,14 +19,14 @@ logger = setup_logging("root_cause_predictor")
 add_metrics_endpoint(app, get_metrics, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str]:
     logger.info("/health endpoint called.")
     from .logic import increment_requests_total
     increment_requests_total("/health")
     return {"status": "ok"}
 
 @app.post("/predict")
-def predict(request: PredictRequest):
+def predict(request: PredictRequest) -> dict[str, str]:
     from .logic import increment_requests_total
     increment_requests_total("/predict")
     return predict_root_cause(request) 
