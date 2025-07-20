@@ -80,5 +80,3 @@ func HandleK8sPods(k8sService services.K8sService) http.HandlerFunc {
 		}
 	}
 }
-
-// func int64Ptr(i int64) *int64 { return &i }
