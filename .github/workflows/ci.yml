@@ -83,6 +83,11 @@ jobs:
         run: |
           cd backend/python-services/${{ matrix.service }}
           ruff check .
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          cd backend/python-services/${{ matrix.service }}
+          mypy .
 
       - name: Test
         run: |

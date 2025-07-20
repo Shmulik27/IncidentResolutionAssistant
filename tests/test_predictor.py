@@ -1,11 +1,6 @@
 """Tests for the Root Cause Predictor service."""
 
-# from fastapi.testclient import TestClient
-# from app.api import app
+from backend.python-services.root_cause_predictor.app.logic import predict_root_cause
+from backend.python-services.root_cause_predictor.app.models import PredictRequest
 
-# client = TestClient(app)
-
-def test_predictor():
-    """Test the root cause predictor endpoint."""
-    # Add your test logic here
-    pass 
+# (rest of the test code, update usages if needed) 

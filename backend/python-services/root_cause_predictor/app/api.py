@@ -2,8 +2,8 @@
 API endpoints for the Root Cause Predictor Service.
 """
 
-from fastapi import FastAPI, Response
-from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from fastapi import FastAPI
+from prometheus_client import CONTENT_TYPE_LATEST
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from .models import PredictRequest
 from .logic import predict_root_cause, get_metrics

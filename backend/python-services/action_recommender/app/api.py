@@ -54,4 +54,6 @@ def recommend_action(request: RecommendRequest):
     except Exception as e:
         ERRORS_TOTAL.labels(endpoint="/recommend").inc()
         logger.error("Unexpected error in /recommend: %s", e)
-        return {"error": str(e)} 
+        return {"error": str(e)}
+
+__all__ = ["recommend_action"] 

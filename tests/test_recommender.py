@@ -1,7 +1,8 @@
 """Tests for the Action Recommender service."""
 
 from fastapi.testclient import TestClient
-from app.api import app, recommend_action, RecommendRequest
+from backend.python-services.action_recommender.app.api import recommend_action
+from backend.python-services.action_recommender.app.models import RecommendRequest
 
 client = TestClient(app)
 
