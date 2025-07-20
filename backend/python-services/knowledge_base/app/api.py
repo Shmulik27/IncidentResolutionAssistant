@@ -3,7 +3,7 @@ API endpoints for the Knowledge Base Service.
 Provides vector search over incident knowledge base using FAISS and sentence transformers.
 """
 
-from typing import List, cast
+from typing import List
 from fastapi import FastAPI
 from pydantic import BaseModel
 import faiss
