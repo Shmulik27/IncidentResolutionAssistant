@@ -88,7 +88,7 @@ jobs:
         run: |
           pip install mypy
           cd backend/python-services/${{ matrix.service }}
-          mypy .
+          mypy --explicit-package-bases app tests
 
       - name: Test
         run: |
