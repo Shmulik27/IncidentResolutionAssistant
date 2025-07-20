@@ -22,7 +22,9 @@ import {
   InputLabel,
   Accordion,
   AccordionSummary,
-  AccordionDetails
+  AccordionDetails,
+  Tabs,
+  Tab
 } from '@mui/material';
 import {
   Refresh,
@@ -71,6 +73,7 @@ const IncidentAnalytics = ({ active }) => {
   const [recentIncidents, setRecentIncidents] = useState([]);
   const [recentLoading, setRecentLoading] = useState(true);
   const [recentError, setRecentError] = useState(null);
+  const [tab, setTab] = useState(0);
 
   // Compute analytics from recentIncidents
   useEffect(() => {
@@ -253,7 +256,7 @@ const IncidentAnalytics = ({ active }) => {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4" gutterBottom>
-            Incident Analytics
+            Incident Dashboard
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Incident trends, patterns, and resolution insights
@@ -276,7 +279,6 @@ const IncidentAnalytics = ({ active }) => {
               <MenuItem value="90d">Last 90 Days</MenuItem>
             </Select>
           </FormControl>
-          {/* Removed Refresh button since analytics are now computed from recentIncidents */}
         </Box>
       </Box>
 
@@ -286,227 +288,239 @@ const IncidentAnalytics = ({ active }) => {
         </Alert>
       )}
 
-      {/* Key Metrics Cards */}
-      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <BugReport color="primary" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Total Incidents</Typography>
-                  <Typography variant="h4" color="primary">
-                    {metrics.totalIncidents}
+      {/* Tabs */}
+      <Tabs value={tab} onChange={(_, v) => setTab(v)} aria-label="incident dashboard tabs" sx={{ mb: 3 }}>
+        <Tab label="Analytics Overview" />
+        <Tab label="Recent Incidents Details" />
+      </Tabs>
+
+      {tab === 0 && (
+        <>
+          {/* Key Metrics Cards */}
+          <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center">
+                    <BugReport color="primary" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="h6">Total Incidents</Typography>
+                      <Typography variant="h4" color="primary">
+                        {metrics.totalIncidents}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center">
+                    <CheckCircle color="success" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="h6">Resolved</Typography>
+                      <Typography variant="h4" color="success">
+                        {metrics.resolvedIncidents}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center">
+                    <Warning color="warning" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="h6">Open</Typography>
+                      <Typography variant="h4" color="warning">
+                        {metrics.openIncidents}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Card>
+                <CardContent>
+                  <Box display="flex" alignItems="center">
+                    <Schedule color="info" sx={{ mr: 2 }} />
+                    <Box>
+                      <Typography variant="h6">Avg Resolution</Typography>
+                      <Typography variant="h4" color="info">
+                        {metrics.avgResolutionTime.toFixed(1)}h
+                      </Typography>
+                    </Box>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+
+          {/* Charts Row 1 */}
+          <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
+            <Grid item xs={12} lg={8}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Incident Trends
                   </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <LineChart data={analytics.trends}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="incidents" stroke="#8884d8" name="Total Incidents" />
+                      <Line type="monotone" dataKey="resolved" stroke="#82ca9d" name="Resolved" />
+                      <Line type="monotone" dataKey="avgResolutionTime" stroke="#ffc658" name="Avg Resolution Time (h)" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <CheckCircle color="success" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Resolved</Typography>
-                  <Typography variant="h4" color="success">
-                    {metrics.resolvedIncidents}
+            <Grid item xs={12} lg={4}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Severity Distribution
                   </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={analytics.severityDistribution}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ severity, percent }) => `${severity} ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="count"
+                      >
+                        {analytics.severityDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Warning color="warning" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Open</Typography>
-                  <Typography variant="h4" color="warning">
-                    {metrics.openIncidents}
+          {/* Charts Row 2 */}
+          <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Top Issue Categories
                   </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analytics.topIssues}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="category" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="count" fill="#8884d8" name="Incident Count" />
+                      <Bar dataKey="avgResolutionTime" fill="#82ca9d" name="Avg Resolution Time (h)" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
-          <Card>
-            <CardContent>
-              <Box display="flex" alignItems="center">
-                <Schedule color="info" sx={{ mr: 2 }} />
-                <Box>
-                  <Typography variant="h6">Avg Resolution</Typography>
-                  <Typography variant="h4" color="info">
-                    {metrics.avgResolutionTime.toFixed(1)}h
+            <Grid item xs={12} md={6}>
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" gutterBottom>
+                    Resolution Time by Service
                   </Typography>
-                </Box>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={analytics.resolutionTimes}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="service" />
+                      <YAxis />
+                      <RechartsTooltip />
+                      <Legend />
+                      <Bar dataKey="avgTime" fill="#8884d8" name="Avg Resolution Time (h)" />
+                      <Bar dataKey="totalIncidents" fill="#82ca9d" name="Total Incidents" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
 
-      {/* Charts Row 1 */}
-      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
-        <Grid item xs={12} lg={8}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Incident Trends
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={analytics.trends}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="incidents" stroke="#8884d8" name="Total Incidents" />
-                  <Line type="monotone" dataKey="resolved" stroke="#82ca9d" name="Resolved" />
-                  <Line type="monotone" dataKey="avgResolutionTime" stroke="#ffc658" name="Avg Resolution Time (h)" />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
+          {/* Recent Incidents Table */}
+          <Box sx={{ width: '100%', overflowX: 'auto', mb: 3 }}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Recent Incidents
+                </Typography>
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Title</TableCell>
+                        <TableCell>Service</TableCell>
+                        <TableCell>Severity</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Category</TableCell>
+                        <TableCell>Created</TableCell>
+                        <TableCell>Resolution Time</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {Array.isArray(analytics.incidents) && analytics.incidents.slice(0, 10).map((incident) => (
+                        <TableRow key={incident.id}>
+                          <TableCell>{incident.title}</TableCell>
+                          <TableCell>{incident.service}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={incident.severity} 
+                              color={getSeverityColor(incident.severity)}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={incident.status} 
+                              color={getStatusColor(incident.status)}
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell>{incident.category}</TableCell>
+                          <TableCell>{incident.createdAt}</TableCell>
+                          <TableCell>
+                            {incident.resolutionTime 
+                              ? `${incident.resolutionTime}h` 
+                              : incident.status === 'Open' ? 'In Progress' : 'N/A'
+                            }
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </CardContent>
+            </Card>
+          </Box>
+        </>
+      )}
 
-        <Grid item xs={12} lg={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Severity Distribution
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={analytics.severityDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ severity, percent }) => `${severity} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="count"
-                  >
-                    {analytics.severityDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Charts Row 2 */}
-      <Grid container spacing={3} mb={3} sx={{ overflowX: 'auto', flexWrap: { xs: 'nowrap', sm: 'wrap' } }}>
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Top Issue Categories
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analytics.topIssues}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="category" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Legend />
-                  <Bar dataKey="count" fill="#8884d8" name="Incident Count" />
-                  <Bar dataKey="avgResolutionTime" fill="#82ca9d" name="Avg Resolution Time (h)" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Resolution Time by Service
-              </Typography>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analytics.resolutionTimes}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="service" />
-                  <YAxis />
-                  <RechartsTooltip />
-                  <Legend />
-                  <Bar dataKey="avgTime" fill="#8884d8" name="Avg Resolution Time (h)" />
-                  <Bar dataKey="totalIncidents" fill="#82ca9d" name="Total Incidents" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Recent Incidents Table */}
-      <Box sx={{ width: '100%', overflowX: 'auto', mb: 3 }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Recent Incidents
-            </Typography>
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Title</TableCell>
-                    <TableCell>Service</TableCell>
-                    <TableCell>Severity</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Created</TableCell>
-                    <TableCell>Resolution Time</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Array.isArray(analytics.incidents) && analytics.incidents.slice(0, 10).map((incident) => (
-                    <TableRow key={incident.id}>
-                      <TableCell>{incident.title}</TableCell>
-                      <TableCell>{incident.service}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={incident.severity} 
-                          color={getSeverityColor(incident.severity)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={incident.status} 
-                          color={getStatusColor(incident.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>{incident.category}</TableCell>
-                      <TableCell>{incident.createdAt}</TableCell>
-                      <TableCell>
-                        {incident.resolutionTime 
-                          ? `${incident.resolutionTime}h` 
-                          : incident.status === 'Open' ? 'In Progress' : 'N/A'
-                        }
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-      </Box>
+      {tab === 1 && <RecentIncidentsDetails />}
     </Box>
   );
 };
@@ -557,10 +571,7 @@ export function RecentIncidentsDetails() {
   const getJobInfo = (jobId) => jobs.find(j => j.id === jobId) || {};
 
   return (
-    <Box mt={4} mb={2}>
-      <Typography variant="h5" gutterBottom>
-        Recent Incidents details
-      </Typography>
+    <Box>
       {recentLoading ? (
         <CircularProgress />
       ) : recentError ? (
@@ -569,39 +580,6 @@ export function RecentIncidentsDetails() {
         <Alert severity="info">No recent incidents found.</Alert>
       ) : (
         <>
-          {/* Table view */}
-          <TableContainer component={Paper} sx={{ mb: 3 }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Title</TableCell>
-                  <TableCell>Service</TableCell>
-                  <TableCell>Severity</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Category</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Resolution Time</TableCell>
-                  <TableCell>Analysis Detail</TableCell>
-                  <TableCell>Root Cause</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {recentIncidents.map((item, idx) => (
-                  <TableRow key={item.id || idx}>
-                    <TableCell>{item.title}</TableCell>
-                    <TableCell>{item.service}</TableCell>
-                    <TableCell>{item.severity}</TableCell>
-                    <TableCell>{item.status}</TableCell>
-                    <TableCell>{item.category}</TableCell>
-                    <TableCell>{item.timestamp ? new Date(item.timestamp).toLocaleString() : ''}</TableCell>
-                    <TableCell>{item.resolution_time ? item.resolution_time : 'N/A'}</TableCell>
-                    <TableCell>{item.analysisObj?.detail || ''}</TableCell>
-                    <TableCell>{item.rootCauseObj?.root_cause || ''}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
           {/* Accordion view */}
           <Box className="scan-results" sx={{ background: '#f8f9fa', p: 2, borderRadius: 2, borderLeft: '4px solid #28a745' }}>
             {recentIncidents.map((item, idx) => {
