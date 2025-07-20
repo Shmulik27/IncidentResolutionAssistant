@@ -26,7 +26,7 @@ run_test "Go Linter (golangci-lint)" "cd backend/go-backend && golangci-lint run
 run_test "Python Linter (ruff)" "ruff check $(git ls-files '*.py')"
 
 # Python type checker (mypy)
-run_test "Python Type Checker (mypy)" "mypy backend/python-services"
+run_test "Python Type Checker (mypy)" "mypy --explicit-package-bases backend/python-services"
 
 # Python microservices
 run_test "Python Log Analyzer Tests" "(cd backend/python-services/log_analyzer && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"

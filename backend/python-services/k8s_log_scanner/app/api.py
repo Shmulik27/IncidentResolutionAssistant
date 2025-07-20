@@ -1,9 +1,7 @@
 from fastapi import FastAPI, Response, HTTPException, Request
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Any
-import logging
+from typing import List, Optional, Dict
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-import yaml
 import base64
 import tempfile
 import os
@@ -12,7 +10,6 @@ import subprocess
 import json
 import requests
 import threading
-import time
 import uuid
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_429_TOO_MANY_REQUESTS
 import time as pytime
@@ -395,7 +392,7 @@ def scan_logs(request: LogScanRequest, req: Request, job_id: str = ""):
             if request.cluster_config.kubeconfig:
                 try:
                     os.unlink(kubeconfig_path)
-                except:
+                except Exception:
                     pass
             logger.info(f"Log scan completed. Found {len(all_logs)} log lines from {len(pods_scanned)} pods")
             incident_analysis = None

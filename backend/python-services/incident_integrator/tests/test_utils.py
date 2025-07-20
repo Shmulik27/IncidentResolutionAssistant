@@ -3,7 +3,6 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import unittest
 from unittest.mock import MagicMock
-import pytest
 from app.utils import get_code_owner, get_codeowner_from_file
 
 class TestUtils(unittest.TestCase):

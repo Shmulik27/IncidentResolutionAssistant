@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Header, Body
 from common.fastapi_utils import add_cors, setup_logging
-from app.logic import load_config, save_config, handle_incident_logic, send_slack_notification, get_github_repo, get_jira_client, verify_signature, github_webhook_logic
+from app.logic import load_config, save_config, handle_incident_logic, get_github_repo, get_jira_client, verify_signature, github_webhook_logic
 from app.models import IncidentEvent
 
 load_dotenv()

@@ -18,13 +18,13 @@ func TestJobAPIHandlers(t *testing.T) {
 	userID := "testuser"
 	utils.JobsFile = "test_jobs_data.json"
 	defer func() {
-		if err := os.Remove(utils.JobsFile); err != nil {
+		if err := os.Remove(utils.JobsFile); err != nil && !os.IsNotExist(err) {
 			t.Errorf("failed to remove jobs file: %v", err)
 		}
 	}()
 	utils.IncidentsFile = "test_incidents_data.json"
 	defer func() {
-		if err := os.Remove(utils.IncidentsFile); err != nil {
+		if err := os.Remove(utils.IncidentsFile); err != nil && !os.IsNotExist(err) {
 			t.Errorf("failed to remove incidents file: %v", err)
 		}
 	}()

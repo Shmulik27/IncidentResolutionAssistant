@@ -1,6 +1,3 @@
-import os
-from github import Github
-import requests
 
 def get_code_owner(repo, file_path, line_number):
     """
