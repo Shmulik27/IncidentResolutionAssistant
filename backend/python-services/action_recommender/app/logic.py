@@ -3,7 +3,6 @@
 import logging
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-import numpy as np
 
 logger = logging.getLogger("action_recommender.logic")
 
@@ -16,7 +15,7 @@ def recommend_action_logic(request):
     """Recommend an action based on the request."""
     # Dummy logic for demonstration
     logger.info("Received request: %s", request)
-    X_query = vectorizer.transform([request.query])
-    prediction = model.predict(X_query)
+    x_query = vectorizer.transform([request.query])
+    prediction = model.predict(x_query)
     logger.info("Prediction: %s", prediction)
-    return type("RecommendResponse", (), {"action": "restart_service"})() 
+    return type("RecommendResponse", (), {"action": "restart_service"})()
