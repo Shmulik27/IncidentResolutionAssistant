@@ -1,20 +1,6 @@
-"""Logic for the Action Recommender service."""
+"""Logic for the Root Cause Predictor service."""
 
-import logging
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-
-logger = logging.getLogger("action_recommender.logic")
-
-# Example model (replace with real logic)
-vectorizer = TfidfVectorizer()
-model = LogisticRegression()
-
-def recommend_action_logic(request):
-    """Recommend an action based on the request."""
-    logger.info("Received request: %s", request)
-    x_query = vectorizer.transform([request.query])
-    prediction = model.predict(x_query)
-    logger.info("Prediction: %s", prediction)
-    # Return a dummy response object for demonstration
-    return type("RecommendResponse", (), {"action": "restart_service"})() 
+def get_metrics():
+    """Return Prometheus metrics for the service (sample implementation)."""
+    # Implement your logic here
+    return b"# HELP dummy_metric Dummy metric\n# TYPE dummy_metric counter\ndummy_metric 1\n" 

@@ -6,6 +6,8 @@ import (
 	"errors"
 	"time"
 
+	"backend/go-backend/logger"
+
 	"github.com/google/uuid"
 )
 
@@ -73,7 +75,11 @@ func (s *DefaultJobService) UpdateLogScanJob(userID, jobID string, req UpdateJob
 		return nil, ErrJobNotFound
 	}
 	utils.SetJobs(userID, jobs)
-	go utils.SaveJobs()
+	go func() {
+		if err := utils.SaveJobs(); err != nil {
+			logger.Logger.Error("Error saving jobs in UpdateLogScanJob goroutine:", err)
+		}
+	}()
 	return jobs, nil
 }
 
@@ -91,7 +97,11 @@ func (s *DefaultJobService) DeleteLogScanJob(userID, jobID string) error {
 	}
 	jobs = append(jobs[:idx], jobs[idx+1:]...)
 	utils.SetJobs(userID, jobs)
-	go utils.SaveJobs()
+	go func() {
+		if err := utils.SaveJobs(); err != nil {
+			logger.Logger.Error("Error saving jobs in DeleteLogScanJob goroutine:", err)
+		}
+	}()
 	return nil
 }
 
@@ -107,7 +117,7 @@ func (s *DefaultJobService) CreateLogScanJob(userID string, req CreateJobRequest
 	if req.Namespace == "" || req.Interval <= 0 {
 		return models.Job{}, ErrInvalidJobRequest
 	}
-	if req.Microservices == nil || len(req.Microservices) == 0 {
+	if len(req.Microservices) == 0 {
 		req.Microservices = []string{
 			"log_analyzer",
 			"root_cause_predictor",

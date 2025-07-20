@@ -2,7 +2,6 @@ package utils
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"sync"
 
@@ -46,7 +45,11 @@ func LoadJobs() error {
 		logger.Logger.Error("Error opening jobs file:", err)
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.Logger.Error("Error closing jobs file:", err)
+		}
+	}()
 	err = json.NewDecoder(file).Decode(&jobs)
 	if err != nil {
 		logger.Logger.Error("Error decoding jobs file:", err)
@@ -64,7 +67,7 @@ func SaveJobs() error {
 		logger.Logger.Error("Error marshaling jobs:", err)
 		return err
 	}
-	err = ioutil.WriteFile(JobsFile, data, 0644)
+	err = os.WriteFile(JobsFile, data, 0644)
 	if err != nil {
 		logger.Logger.Error("Error writing jobs file:", err)
 	}
@@ -86,7 +89,11 @@ func LoadIncidents() error {
 		logger.Logger.Error("Error opening incidents file:", err)
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			logger.Logger.Error("Error closing incidents file:", err)
+		}
+	}()
 	err = json.NewDecoder(file).Decode(&incidents)
 	if err != nil {
 		logger.Logger.Error("Error decoding incidents file:", err)
@@ -104,7 +111,7 @@ func SaveIncidents() error {
 		logger.Logger.Error("Error marshaling incidents:", err)
 		return err
 	}
-	err = ioutil.WriteFile(IncidentsFile, data, 0644)
+	err = os.WriteFile(IncidentsFile, data, 0644)
 	if err != nil {
 		logger.Logger.Error("Error writing incidents file:", err)
 	}
@@ -117,7 +124,11 @@ func AddJob(userID string, job models.Job) error {
 	jobsMutex.Lock()
 	jobs[userID] = append(jobs[userID], job)
 	jobsMutex.Unlock()
-	go SaveJobs() // Save in background
+	go func() {
+		if err := SaveJobs(); err != nil {
+			logger.Logger.Error("Error saving jobs in AddJob goroutine:", err)
+		}
+	}()
 	return nil
 }
 
@@ -140,7 +151,11 @@ func DeleteJob(userID, jobID string) error {
 		}
 	}
 	jobsMutex.Unlock()
-	go SaveJobs() // Save in background
+	go func() {
+		if err := SaveJobs(); err != nil {
+			logger.Logger.Error("Error saving jobs in DeleteJob goroutine:", err)
+		}
+	}()
 	return nil
 }
 

@@ -7,12 +7,13 @@ import (
 
 	"backend/go-backend/logger"
 	"backend/go-backend/services"
+	"backend/go-backend/utils"
 
 	"firebase.google.com/go/v4/auth"
 )
 
 func getUserID(r *http.Request) (string, bool) {
-	token, ok := r.Context().Value("user").(*auth.Token)
+	token, ok := r.Context().Value(utils.UserCtxKey).(*auth.Token)
 	if !ok || token == nil {
 		return "", false
 	}
@@ -47,7 +48,9 @@ func HandleCreateLogScanJob(jobService services.JobService) http.HandlerFunc {
 		}
 		logger.Logger.Info("[Jobs] Job created for user", userID, ":", job)
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(job)
+		if err := json.NewEncoder(w).Encode(job); err != nil {
+			logger.Logger.Error("[Jobs] Failed to encode job response:", err)
+		}
 	}
 }
 
@@ -69,7 +72,9 @@ func HandleListLogScanJobs(jobService services.JobService) http.HandlerFunc {
 		}
 		logger.Logger.Info("[Jobs] Returning", len(jobList), "jobs for user", userID)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(jobList)
+		if err := json.NewEncoder(w).Encode(jobList); err != nil {
+			logger.Logger.Error("[Jobs] Failed to encode job list response:", err)
+		}
 	}
 }
 
@@ -144,7 +149,9 @@ func HandleUpdateLogScanJob(jobService services.JobService) http.HandlerFunc {
 		}
 		logger.Logger.Info("[Jobs] Job updated for user", userID, "jobID:", jobID)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(jobList)
+		if err := json.NewEncoder(w).Encode(jobList); err != nil {
+			logger.Logger.Error("[Jobs] Failed to encode updated job list response:", err)
+		}
 	}
 }
 
@@ -166,6 +173,8 @@ func HandleGetRecentIncidents(jobService services.JobService) http.HandlerFunc {
 		}
 		logger.Logger.Info("[Incidents] Returning", len(incidents), "incidents for user", userID)
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(incidents)
+		if err := json.NewEncoder(w).Encode(incidents); err != nil {
+			logger.Logger.Error("[Incidents] Failed to encode incidents response:", err)
+		}
 	}
 }

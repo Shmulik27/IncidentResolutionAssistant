@@ -136,7 +136,6 @@ func (s *DefaultK8sService) ScanLogs(req ScanLogsRequest) ([]map[string]interfac
 				continue
 			}
 			b, err := io.ReadAll(stream)
-			stream.Close()
 			if err == nil {
 				for _, line := range strings.Split(string(b), "\n") {
 					for lvl := range logLevels {

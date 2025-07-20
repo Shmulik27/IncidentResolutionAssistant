@@ -1,9 +1,12 @@
+"""
+API endpoints for the Root Cause Predictor Service.
+"""
+
 from fastapi import FastAPI, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 from .models import PredictRequest
-from .logic import predict_root_cause
-
+from .logic import predict_root_cause, get_metrics
 
 app = FastAPI(
     title="Root Cause Predictor Service",
@@ -13,8 +16,6 @@ app = FastAPI(
 add_cors(app)
 
 logger = setup_logging("root_cause_predictor")
-
-from .logic import get_metrics
 add_metrics_endpoint(app, get_metrics, CONTENT_TYPE_LATEST)
 
 @app.get("/health")

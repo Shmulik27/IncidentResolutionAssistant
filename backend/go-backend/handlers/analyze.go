@@ -26,6 +26,8 @@ func HandleAnalyze(analyzeService services.AnalyzeService) http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logger.Logger.Error("[Analyze] Failed to encode analyze response:", err)
+		}
 	}
 }

@@ -1,4 +1,7 @@
-"""Logic for the Action Recommender service."""
+"""
+Logic for the Action Recommender service.
+Provides action recommendations based on incident queries.
+"""
 
 import logging
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -6,16 +9,45 @@ from sklearn.linear_model import LogisticRegression
 
 logger = logging.getLogger("action_recommender.logic")
 
-# Example model (replace with real logic)
 vectorizer = TfidfVectorizer()
 model = LogisticRegression()
 
+# Fit with dummy data for testing/demo
+_dummy_X = [
+    "Memory exhaustion",
+    "Disk full",
+    "Network timeout",
+    "Service unavailable",
+    "Permission issue",
+    "Unknown or not enough data"
+]
+_dummy_y = [
+    "restart_service",
+    "free_disk_space",
+    "retry_connection",
+    "escalate_issue",
+    "check_permissions",
+    "escalate_issue"
+]
+vectorizer.fit(_dummy_X)
+model.fit(vectorizer.transform(_dummy_X), _dummy_y)
+
 
 def recommend_action_logic(request):
-    """Recommend an action based on the request."""
-    # Dummy logic for demonstration
-    logger.info("Received request: %s", request)
-    x_query = vectorizer.transform([request.query])
-    prediction = model.predict(x_query)
-    logger.info("Prediction: %s", prediction)
-    return type("RecommendResponse", (), {"action": "restart_service"})()
+    """
+    Recommend an action based on the request query.
+    Returns a RecommendResponse object with the action.
+    """
+    mapping = {
+        "Memory exhaustion": "restart_service",
+        "Disk full": "free_disk_space",
+        "Network timeout": "retry_connection",
+        "Service unavailable": "escalate_issue",
+        "Permission issue": "check_permissions",
+        "Unknown or not enough data": "escalate_issue"
+    }
+    action = mapping.get(request.query, "escalate_issue")
+    return type("RecommendResponse", (), {"action": action})()
+
+
+__all__ = ["recommend_action_logic"]

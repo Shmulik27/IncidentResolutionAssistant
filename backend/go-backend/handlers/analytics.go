@@ -172,7 +172,9 @@ func HandleAnalytics(analyticsService AnalyticsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(data)
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			logger.Logger.Error("[Analytics] Failed to encode analytics response:", err)
+		}
 	}
 }
 
@@ -189,7 +191,9 @@ func HandleServiceMetrics(analyticsService AnalyticsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(data)
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			logger.Logger.Error("[Analytics] Failed to encode service metrics response:", err)
+		}
 	}
 }
 
@@ -206,6 +210,8 @@ func HandleRateLimitData(analyticsService AnalyticsService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(data)
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			logger.Logger.Error("[Analytics] Failed to encode rate limit data response:", err)
+		}
 	}
 }

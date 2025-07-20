@@ -1,11 +1,18 @@
-import spacy
+"""
+Logic for the Log Analyzer Service.
+Performs anomaly detection on logs using ML, keyword, frequency, and entity-based methods.
+"""
+
 from collections import Counter as StdCounter
+import os
+import logging
+import spacy
 from sklearn.ensemble import IsolationForest
 from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 import scipy.sparse as sparse
-import os
-import logging
+
+__all__ = ["analyze_logs_logic"]
 
 nlp = spacy.load("en_core_web_sm")
 
@@ -40,7 +47,12 @@ iso_forest.fit(X_train_dense)
 
 logger = logging.getLogger("log_analyzer.logic")
 
+
 def analyze_logs_logic(logs):
+    """
+    Analyze logs for anomalies using ML, keyword, frequency, and entity-based methods.
+    Returns a dictionary with anomaly details.
+    """
     anomalies = []
     entity_anomalies = []
     freq_anomalies = []

@@ -1,14 +1,33 @@
+"""
+Logic for the Root Cause Predictor Service.
+Handles model training, prediction, and Prometheus metrics.
+"""
+
 import logging
+import numpy as np
 from prometheus_client import Counter, generate_latest
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-import numpy as np
 from .models import PredictRequest
 
+__all__ = ["predict_root_cause", "get_metrics", "increment_requests_total"]
+
 # Prometheus metrics
-REQUESTS_TOTAL = Counter('root_cause_predictor_requests_total', 'Total requests to root cause predictor', ['endpoint'])
-ERRORS_TOTAL = Counter('root_cause_predictor_errors_total', 'Total errors in root cause predictor', ['endpoint'])
-PREDICTIONS_TOTAL = Counter('root_cause_predictor_predictions_total', 'Total predictions made', ['endpoint', 'root_cause'])
+REQUESTS_TOTAL = Counter(
+    'root_cause_predictor_requests_total',
+    'Total requests to root cause predictor',
+    ['endpoint']
+)
+ERRORS_TOTAL = Counter(
+    'root_cause_predictor_errors_total',
+    'Total errors in root cause predictor',
+    ['endpoint']
+)
+PREDICTIONS_TOTAL = Counter(
+    'root_cause_predictor_predictions_total',
+    'Total predictions made',
+    ['endpoint', 'root_cause']
+)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -98,7 +117,12 @@ y_train = np.array(TRAIN_LABELS)
 model = LogisticRegression(max_iter=1000)
 model.fit(X_train, y_train)
 
+
 def predict_root_cause(request: PredictRequest):
+    """
+    Predict the root cause of an incident based on the provided logs.
+    Returns a dictionary with the predicted root cause or error message.
+    """
     try:
         logger.info(f"Received {len(request.logs)} log lines for prediction.")
         if not request.logs:
@@ -122,8 +146,16 @@ def predict_root_cause(request: PredictRequest):
         logger.error(f"Error in /predict: {e}")
         return {"error": str(e)}
 
+
 def increment_requests_total(endpoint: str):
+    """
+    Increment the Prometheus counter for total requests to a given endpoint.
+    """
     REQUESTS_TOTAL.labels(endpoint=endpoint).inc()
 
+
 def get_metrics():
+    """
+    Return the latest Prometheus metrics for the service.
+    """
     return generate_latest() 

@@ -123,7 +123,11 @@ func TestJobRunsImmediatelyAfterCreation(t *testing.T) {
 	utils.ClearJobs()
 	utils.ClearIncidents()
 	utils.JobsFile = "test_jobs_data_immediate.json"
-	defer os.Remove(utils.JobsFile)
+	defer func() {
+		if err := os.Remove(utils.JobsFile); err != nil {
+			t.Errorf("failed to remove jobs file: %v", err)
+		}
+	}()
 
 	userID := "immediateuser"
 	job := models.Job{

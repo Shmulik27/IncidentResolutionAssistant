@@ -19,6 +19,12 @@ function run_test() {
 
 PYTHON_SERVICES_PATH="$(pwd)/backend/python-services"
 
+# Go linter
+run_test "Go Linter (golangci-lint)" "cd backend/go-backend && golangci-lint run ./... && cd - > /dev/null"
+
+# Python linter (pylint)
+run_test "Python Linter (pylint)" "pylint --fail-under=8.0 \$(git ls-files '*.py')"
+
 # Python microservices
 run_test "Python Log Analyzer Tests" "(cd backend/python-services/log_analyzer && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"
 run_test "Python Root Cause Predictor Tests" "(cd backend/python-services/root_cause_predictor && source venv/bin/activate && PYTHONPATH=\"$PYTHON_SERVICES_PATH\" pytest)"

@@ -1,55 +1,30 @@
-"""API endpoints for the Action Recommender service."""
+"""API endpoints for the Root Cause Predictor service."""
 
-import logging
-from fastapi import FastAPI, Response
-from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
-from .logic import recommend_action_logic
-from .models import RecommendRequest, RecommendResponse
+from fastapi import FastAPI
+from prometheus_client import CONTENT_TYPE_LATEST
+from app.models import PredictRequest
+from app.logic import get_metrics
 
 app = FastAPI(
-    title="Action Recommender Service",
-    description="Recommends actions to resolve incidents based on analysis and knowledge base.",
+    title="Root Cause Predictor Service",
+    description="Predicts the root cause of incidents based on log analysis.",
     version="1.0.0"
 )
 
-REQUESTS_TOTAL = Counter(
-    "action_recommender_requests_total",
-    "Total requests to action recommender",
-    ["endpoint"],
-)
-ERRORS_TOTAL = Counter(
-    "action_recommender_errors_total",
-    "Total errors in action recommender",
-    ["endpoint"],
-)
-RECOMMENDATIONS_TOTAL = Counter(
-    "action_recommender_recommendations_total",
-    "Total recommendations made",
-    ["endpoint", "action"],
-)
+# Placeholder for CORS and logging setup if needed
+def setup_logging(name):
+    """Set up logging for the service."""
+    import logging
+    return logging.getLogger(name)
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("action_recommender")
+def add_cors(app):
+    """No-op CORS setup (placeholder)."""
+    pass
 
-@app.get("/metrics")
-def metrics():
-    """Return Prometheus metrics."""
-    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+def add_metrics_endpoint(app, func, content_type):
+    """No-op metrics endpoint setup (placeholder)."""
+    pass
 
-@app.post("/recommend", response_model=RecommendResponse)
-def recommend_action(request: RecommendRequest):
-    """Recommend an action based on the request."""
-    REQUESTS_TOTAL.labels(endpoint="/recommend").inc()
-    try:
-        logger.info("Received recommend request: %s", request)
-        result = recommend_action_logic(request)
-        RECOMMENDATIONS_TOTAL.labels(endpoint="/recommend", action=result.action).inc()
-        return result
-    except ValueError as e:
-        ERRORS_TOTAL.labels(endpoint="/recommend").inc()
-        logger.error("ValueError in /recommend: %s", e)
-        return {"error": str(e)}
-    except (TypeError, AttributeError) as e:
-        ERRORS_TOTAL.labels(endpoint="/recommend").inc()
-        logger.error("Type/Attribute error in /recommend: %s", e)
-        return {"error": str(e)} 
+add_cors(app)
+logger = setup_logging("root_cause_predictor")
+add_metrics_endpoint(app, get_metrics, CONTENT_TYPE_LATEST) 

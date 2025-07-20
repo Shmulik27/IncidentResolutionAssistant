@@ -1,10 +1,12 @@
-"""API endpoints for the Action Recommender service."""
+"""
+API endpoints for the Action Recommender service.
+"""
 
-import logging
 from fastapi import FastAPI, Response
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from app.logic import recommend_action_logic
 from app.models import RecommendRequest, RecommendResponse
+import logging
 
 app = FastAPI(
     title="Action Recommender Service",

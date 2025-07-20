@@ -12,7 +12,11 @@ func TestJobPersistence(t *testing.T) {
 	// Use a temp file for jobs
 	jobsFile := "test_jobs_data.json"
 	utils.JobsFile = jobsFile
-	defer os.Remove(jobsFile)
+	defer func() {
+		if err := os.Remove(jobsFile); err != nil {
+			t.Errorf("failed to remove jobs file: %v", err)
+		}
+	}()
 
 	userID := "user1"
 	job := models.Job{
@@ -62,7 +66,11 @@ func TestIncidentPersistence(t *testing.T) {
 	// Use a temp file for incidents
 	incidentsFile := "test_incidents_data.json"
 	utils.IncidentsFile = incidentsFile
-	defer os.Remove(incidentsFile)
+	defer func() {
+		if err := os.Remove(incidentsFile); err != nil {
+			t.Errorf("failed to remove incidents file: %v", err)
+		}
+	}()
 
 	userID := "user1"
 	incident := models.Incident{

@@ -8,4 +8,6 @@ class RecommendRequest(BaseModel):
 
 class RecommendResponse(BaseModel):
     """Response model for action recommendation."""
-    action: str 
+    action: str
+
+__all__ = ["RecommendRequest", "RecommendResponse"] 

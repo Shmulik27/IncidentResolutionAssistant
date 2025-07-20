@@ -4,42 +4,44 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from fastapi.testclient import TestClient
-from app.api import app, recommend_action, RecommendRequest
+from app.api import app
+from app.api import recommend_action
+from app.models import RecommendRequest
 
 client = TestClient(app)
 
 def test_memory_exhaustion():
-    req = RecommendRequest(root_cause="Memory exhaustion")
+    req = RecommendRequest(query="Memory exhaustion")
     result = recommend_action(req)
-    assert "memory" in result["action"].lower()
+    assert result.action == "restart_service"
 
 def test_disk_full():
-    req = RecommendRequest(root_cause="Disk full")
+    req = RecommendRequest(query="Disk full")
     result = recommend_action(req)
-    assert "disk" in result["action"].lower()
+    assert result.action == "free_disk_space"
 
 def test_network_timeout():
-    req = RecommendRequest(root_cause="Network timeout")
+    req = RecommendRequest(query="Network timeout")
     result = recommend_action(req)
-    assert "network" in result["action"].lower() or "retry" in result["action"].lower()
+    assert result.action == "retry_connection"
 
 def test_service_unavailable():
-    req = RecommendRequest(root_cause="Service unavailable")
+    req = RecommendRequest(query="Service unavailable")
     result = recommend_action(req)
-    assert "service" in result["action"].lower() or "escalate" in result["action"].lower()
+    assert result.action == "escalate_issue"
 
 def test_permission_issue():
-    req = RecommendRequest(root_cause="Permission issue")
+    req = RecommendRequest(query="Permission issue")
     result = recommend_action(req)
-    assert "permission" in result["action"].lower()
+    assert result.action == "check_permissions"
 
 def test_unknown():
-    req = RecommendRequest(root_cause="Unknown or not enough data")
+    req = RecommendRequest(query="Unknown or not enough data")
     result = recommend_action(req)
-    assert "escalate" in result["action"].lower()
+    assert result.action == "escalate_issue"
 
 def test_recommend_endpoint():
-    payload = {"root_cause": "Memory exhaustion"}
+    payload = {"query": "Memory exhaustion"}
     response = client.post("/recommend", json=payload)
     assert response.status_code == 200
-    assert "memory" in response.json()["action"].lower() 
+    assert response.json()["action"] == "restart_service" 

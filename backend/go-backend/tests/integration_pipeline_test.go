@@ -26,11 +26,24 @@ func TestFullLogScanPipelineIntegration(t *testing.T) {
 	utils.ResetSchedulerForTest()
 	utils.ClearJobs()
 	utils.ClearIncidents()
-	defer func() { recover(); utils.StopScheduler() }()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Logf("recovered in defer: %v", r)
+		}
+		utils.StopScheduler()
+	}()
 	utils.JobsFile = "test_jobs_data_pipeline.json"
 	utils.IncidentsFile = "test_incidents_data_pipeline.json"
-	defer os.Remove(utils.JobsFile)
-	defer os.Remove(utils.IncidentsFile)
+	defer func() {
+		if err := os.Remove(utils.JobsFile); err != nil {
+			t.Errorf("failed to remove jobs file: %v", err)
+		}
+	}()
+	defer func() {
+		if err := os.Remove(utils.IncidentsFile); err != nil {
+			t.Errorf("failed to remove incidents file: %v", err)
+		}
+	}()
 
 	userID := "pipelineuser"
 	job := models.Job{

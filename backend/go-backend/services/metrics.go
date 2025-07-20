@@ -36,9 +36,15 @@ func (s DefaultMetricsService) StreamMetrics(w http.ResponseWriter, r *http.Requ
 			"uptime":            99.8 + rand.Float64()*0.2,
 		}
 		b, _ := json.Marshal(metrics)
-		w.Write([]byte("data: "))
-		w.Write(b)
-		w.Write([]byte("\n\n"))
+		if _, err := w.Write([]byte("data: ")); err != nil {
+			return
+		}
+		if _, err := w.Write(b); err != nil {
+			return
+		}
+		if _, err := w.Write([]byte("\n\n")); err != nil {
+			return
+		}
 		flusher.Flush()
 		time.Sleep(1 * time.Second)
 		if r.Context().Err() != nil {

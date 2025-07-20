@@ -1,11 +1,8 @@
-"""Models for the Action Recommender service."""
+"""Models for the Root Cause Predictor service."""
 
+from typing import List
 from pydantic import BaseModel
 
-class RecommendRequest(BaseModel):
-    """Request model for action recommendation."""
-    query: str
-
-class RecommendResponse(BaseModel):
-    """Response model for action recommendation."""
-    action: str 
+class PredictRequest(BaseModel):
+    """Request model for root cause prediction."""
+    log_lines: List[str] 

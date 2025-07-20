@@ -38,7 +38,7 @@ func FirebaseAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if TestMode {
 			// Inject a mock user for tests
-			ctx := context.WithValue(r.Context(), "user", &auth.Token{UID: "test-user"})
+			ctx := context.WithValue(r.Context(), utils.UserCtxKey, &auth.Token{UID: "test-user"})
 			next(w, r.WithContext(ctx))
 			return
 		}
@@ -53,9 +53,8 @@ func FirebaseAuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
-		ctx := context.WithValue(r.Context(), "user", token)
+		ctx := context.WithValue(r.Context(), utils.UserCtxKey, token)
 		next(w, r.WithContext(ctx))
-
 	}
 }
 
@@ -93,13 +92,14 @@ func main() {
 	http.HandleFunc("/analytics/service-metrics", withCORS(handlers.HandleServiceMetrics(analyticsService)))
 	http.HandleFunc("/analytics/rate-limit", withCORS(handlers.HandleRateLimitData(analyticsService)))
 	http.HandleFunc("/config", withCORS(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			handlers.HandleGetConfiguration(configService)(w, r)
-		} else if r.Method == http.MethodPost {
+		case http.MethodPost:
 			handlers.HandleUpdateConfiguration(configService)(w, r)
-		} else if r.Method == http.MethodOptions {
+		case http.MethodOptions:
 			w.WriteHeader(http.StatusOK)
-		} else {
+		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
@@ -124,27 +124,26 @@ func main() {
 		}
 	})))
 	http.HandleFunc("/api/log-scan-jobs/", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodDelete {
+		switch r.Method {
+		case http.MethodDelete:
 			handlers.HandleDeleteLogScanJob(jobService)(w, r)
-			return
-		} else if r.Method == http.MethodPut {
+		case http.MethodPut:
 			handlers.HandleUpdateLogScanJob(jobService)(w, r)
-			return
-		} else if r.Method == http.MethodOptions {
+		case http.MethodOptions:
 			w.WriteHeader(http.StatusOK)
-			return
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})))
 	http.HandleFunc("/api/incidents/recent", withCORS(FirebaseAuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
+		switch r.Method {
+		case http.MethodGet:
 			handlers.HandleGetRecentIncidents(jobService)(w, r)
-			return
-		} else if r.Method == http.MethodOptions {
+		case http.MethodOptions:
 			w.WriteHeader(http.StatusOK)
-			return
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})))
 
 	logger.Logger.Info("Go backend listening on :8080")

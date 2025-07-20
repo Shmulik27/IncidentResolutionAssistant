@@ -27,11 +27,24 @@ func startMockService(t *testing.T, response map[string]interface{}) (string, fu
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("failed to encode response: %v", err)
+		}
 	})
 	srv := &http.Server{Handler: mux}
-	go srv.Serve(ln)
-	return fmt.Sprintf("http://%s", ln.Addr().String()), func() { srv.Close(); ln.Close() }
+	go func() {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			log.Printf("mock service Serve error: %v", err)
+		}
+	}()
+	return fmt.Sprintf("http://%s", ln.Addr().String()), func() {
+		if err := srv.Close(); err != nil {
+			log.Printf("failed to close mock server: %v", err)
+		}
+		if err := ln.Close(); err != nil {
+			log.Printf("failed to close listener: %v", err)
+		}
+	}
 }
 
 func TestE2E_LogScanJobToIncident(t *testing.T) {
@@ -45,16 +58,32 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 	defer stopKB()
 	defer stopRec()
 
-	os.Setenv("LOG_ANALYZER_URL", analyzerURL)
-	os.Setenv("ROOT_CAUSE_PREDICTOR_URL", predictorURL)
-	os.Setenv("KNOWLEDGE_BASE_URL", kbURL)
-	os.Setenv("ACTION_RECOMMENDER_URL", recURL)
+	if err := os.Setenv("LOG_ANALYZER_URL", analyzerURL); err != nil {
+		t.Fatalf("failed to set LOG_ANALYZER_URL: %v", err)
+	}
+	if err := os.Setenv("ROOT_CAUSE_PREDICTOR_URL", predictorURL); err != nil {
+		t.Fatalf("failed to set ROOT_CAUSE_PREDICTOR_URL: %v", err)
+	}
+	if err := os.Setenv("KNOWLEDGE_BASE_URL", kbURL); err != nil {
+		t.Fatalf("failed to set KNOWLEDGE_BASE_URL: %v", err)
+	}
+	if err := os.Setenv("ACTION_RECOMMENDER_URL", recURL); err != nil {
+		t.Fatalf("failed to set ACTION_RECOMMENDER_URL: %v", err)
+	}
 
 	// Use temp files for jobs/incidents
 	utils.JobsFile = "test_jobs_data_e2e.json"
 	utils.IncidentsFile = "test_incidents_data_e2e.json"
-	defer os.Remove(utils.JobsFile)
-	defer os.Remove(utils.IncidentsFile)
+	defer func() {
+		if err := os.Remove(utils.JobsFile); err != nil {
+			t.Errorf("failed to remove jobs file: %v", err)
+		}
+	}()
+	defer func() {
+		if err := os.Remove(utils.IncidentsFile); err != nil {
+			t.Errorf("failed to remove incidents file: %v", err)
+		}
+	}()
 
 	jobService := &services.DefaultJobService{}
 
@@ -83,7 +112,11 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to start backend: %v", err)
 	}
-	go http.Serve(ln, mux)
+	go func() {
+		if err := http.Serve(ln, mux); err != nil && err != http.ErrServerClosed {
+			t.Errorf("backend Serve error: %v", err)
+		}
+	}()
 
 	// Create a job via API
 	jobReq := map[string]interface{}{
@@ -104,7 +137,12 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 
 	// Start scheduler
 	go utils.StartScheduler()
-	defer func() { recover(); utils.StopScheduler() }()
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("recovered in defer: %v", r)
+		}
+		utils.StopScheduler()
+	}()
 
 	// Wait for the job to run
 	time.Sleep(1500 * time.Millisecond)
@@ -118,7 +156,9 @@ func TestE2E_LogScanJobToIncident(t *testing.T) {
 		t.Fatalf("Get incidents failed: %d %s", w.Code, w.Body.String())
 	}
 	var incidents []map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &incidents)
+	if err := json.Unmarshal(w.Body.Bytes(), &incidents); err != nil {
+		t.Fatalf("failed to unmarshal incidents: %v", err)
+	}
 	if len(incidents) == 0 {
 		t.Fatalf("Expected at least one incident, got none")
 	}

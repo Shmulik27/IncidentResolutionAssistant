@@ -65,7 +65,9 @@ func HandleGetConfiguration(configService ConfigService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(config)
+		if err := json.NewEncoder(w).Encode(config); err != nil {
+			logger.Logger.Error("[Config] Failed to encode config response:", err)
+		}
 	}
 }
 
@@ -89,6 +91,8 @@ func HandleUpdateConfiguration(configService ConfigService) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(result)
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logger.Logger.Error("[Config] Failed to encode update config response:", err)
+		}
 	}
 }

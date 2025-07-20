@@ -20,7 +20,9 @@ func HandleK8sNamespaces(k8sService services.K8sService) http.HandlerFunc {
 		}
 		logger.Logger.WithField("namespaces", namespaces).Info("[K8s] Found namespaces")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string][]string{"namespaces": namespaces})
+		if err := json.NewEncoder(w).Encode(map[string][]string{"namespaces": namespaces}); err != nil {
+			logger.Logger.Error("[K8s] Failed to encode namespaces response:", err)
+		}
 	}
 }
 
@@ -46,9 +48,11 @@ func HandleScanK8sLogs(k8sService services.K8sService) http.HandlerFunc {
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		if err := json.NewEncoder(w).Encode(map[string]interface{}{
 			"results": results,
-		})
+		}); err != nil {
+			logger.Logger.Error("[K8s] Failed to encode scan logs response:", err)
+		}
 	}
 }
 
@@ -71,7 +75,9 @@ func HandleK8sPods(k8sService services.K8sService) http.HandlerFunc {
 		}
 		logger.Logger.WithField("pods", len(podNames)).Info("[K8s] Found pods")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string][]string{"pods": podNames})
+		if err := json.NewEncoder(w).Encode(map[string][]string{"pods": podNames}); err != nil {
+			logger.Logger.Error("[K8s] Failed to encode pods response:", err)
+		}
 	}
 }
 

@@ -1,8 +1,8 @@
 from fastapi import FastAPI, Response
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
-from app.logic import analyze_logs_logic
-from app.models import LogRequest
+from .logic import analyze_logs_logic
+from .models import LogRequest
 
 app = FastAPI(
     title="Log Analyzer Service",

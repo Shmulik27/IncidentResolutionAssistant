@@ -93,8 +93,11 @@ func (DefaultJobStore) UpdateJobLastRun(userID string, jobIdx int, t time.Time) 
 }
 
 func (DefaultJobStore) SaveJobs() error {
-	SaveJobs()
-	return nil // SaveJobs has no error return in current implementation
+	err := SaveJobs()
+	if err != nil {
+		Logger.Error("Error saving jobs in DefaultJobStore:", err)
+	}
+	return err
 }
 
 // DefaultIncidentStore implements IncidentStore using the current AddIncident function
@@ -102,8 +105,11 @@ func (DefaultJobStore) SaveJobs() error {
 type DefaultIncidentStore struct{}
 
 func (DefaultIncidentStore) AddIncident(userID string, inc models.Incident) error {
-	AddIncident(userID, inc)
-	return nil // AddIncident has no error return in current implementation
+	err := AddIncident(userID, inc)
+	if err != nil {
+		Logger.Error("Error adding incident in DefaultIncidentStore:", err)
+	}
+	return err
 }
 
 // NewScheduler creates a new Scheduler instance with optional dependencies
@@ -226,7 +232,9 @@ func (s *Scheduler) executeJob(userID string, job models.Job, jobIdx int) {
 	}
 	// Update last run and save jobs using the store
 	s.jobStore.UpdateJobLastRun(userID, jobIdx, s.timeProvider.Now())
-	s.jobStore.SaveJobs()
+	if err := s.jobStore.SaveJobs(); err != nil {
+		Logger.Error("Error saving jobs in executeJob:", err)
+	}
 }
 
 // RunLogScanJobFunc is the function type for running a log scan job
@@ -321,8 +329,14 @@ func callMicroservicesForLog(logLine string, ms map[string]bool) (analyzeResult,
 		analyzeBody, _ := json.Marshal(analyzeReq)
 		analyzeResp, err := http.Post(analyzerURL, "application/json", bytes.NewReader(analyzeBody))
 		if err == nil {
-			defer analyzeResp.Body.Close()
-			json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult)
+			defer func() {
+				if err := analyzeResp.Body.Close(); err != nil {
+					Logger.Error("Error closing analyzeResp.Body:", err)
+				}
+			}()
+			if err := json.NewDecoder(analyzeResp.Body).Decode(&analyzeResult); err != nil {
+				Logger.Error("Error decoding analyzeResp.Body:", err)
+			}
 		}
 	}
 	if ms["root_cause_predictor"] {
@@ -330,8 +344,14 @@ func callMicroservicesForLog(logLine string, ms map[string]bool) (analyzeResult,
 		predictBody, _ := json.Marshal(map[string]interface{}{"logs": []string{logLine}})
 		predictResp, err := http.Post(predictorURL, "application/json", bytes.NewReader(predictBody))
 		if err == nil {
-			defer predictResp.Body.Close()
-			json.NewDecoder(predictResp.Body).Decode(&predictResult)
+			defer func() {
+				if err := predictResp.Body.Close(); err != nil {
+					Logger.Error("Error closing predictResp.Body:", err)
+				}
+			}()
+			if err := json.NewDecoder(predictResp.Body).Decode(&predictResult); err != nil {
+				Logger.Error("Error decoding predictResp.Body:", err)
+			}
 		}
 	}
 	if ms["knowledge_base"] {
@@ -340,8 +360,14 @@ func callMicroservicesForLog(logLine string, ms map[string]bool) (analyzeResult,
 		kbBody, _ := json.Marshal(kbReq)
 		kbResp, err := http.Post(kbURL, "application/json", bytes.NewReader(kbBody))
 		if err == nil {
-			defer kbResp.Body.Close()
-			json.NewDecoder(kbResp.Body).Decode(&kbResult)
+			defer func() {
+				if err := kbResp.Body.Close(); err != nil {
+					Logger.Error("Error closing kbResp.Body:", err)
+				}
+			}()
+			if err := json.NewDecoder(kbResp.Body).Decode(&kbResult); err != nil {
+				Logger.Error("Error decoding kbResp.Body:", err)
+			}
 		}
 	}
 	if ms["action_recommender"] {
@@ -350,8 +376,14 @@ func callMicroservicesForLog(logLine string, ms map[string]bool) (analyzeResult,
 		recBody, _ := json.Marshal(recReq)
 		recResp, err := http.Post(recommenderURL, "application/json", bytes.NewReader(recBody))
 		if err == nil {
-			defer recResp.Body.Close()
-			json.NewDecoder(recResp.Body).Decode(&recResult)
+			defer func() {
+				if err := recResp.Body.Close(); err != nil {
+					Logger.Error("Error closing recResp.Body:", err)
+				}
+			}()
+			if err := json.NewDecoder(recResp.Body).Decode(&recResult); err != nil {
+				Logger.Error("Error decoding recResp.Body:", err)
+			}
 		}
 	}
 	return
@@ -417,7 +449,6 @@ func getLogsForPods(clientset *kubernetes.Clientset, namespace string, podsToSca
 				continue
 			}
 			b, err := io.ReadAll(stream)
-			stream.Close()
 			if err == nil {
 				for _, line := range strings.Split(string(b), "\n") {
 					for lvl := range logLevels {
@@ -427,6 +458,9 @@ func getLogsForPods(clientset *kubernetes.Clientset, namespace string, podsToSca
 						}
 					}
 				}
+			}
+			if err := stream.Close(); err != nil {
+				Logger.Error("Error closing log stream:", err)
 			}
 		}
 	}

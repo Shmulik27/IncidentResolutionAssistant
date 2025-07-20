@@ -17,9 +17,17 @@ import (
 func TestJobAPIHandlers(t *testing.T) {
 	userID := "testuser"
 	utils.JobsFile = "test_jobs_data.json"
-	defer os.Remove(utils.JobsFile)
+	defer func() {
+		if err := os.Remove(utils.JobsFile); err != nil {
+			t.Errorf("failed to remove jobs file: %v", err)
+		}
+	}()
 	utils.IncidentsFile = "test_incidents_data.json"
-	defer os.Remove(utils.IncidentsFile)
+	defer func() {
+		if err := os.Remove(utils.IncidentsFile); err != nil {
+			t.Errorf("failed to remove incidents file: %v", err)
+		}
+	}()
 
 	jobService := &services.DefaultJobService{}
 
@@ -39,7 +47,9 @@ func TestJobAPIHandlers(t *testing.T) {
 		t.Fatalf("Create job failed: %d %s", w.Code, w.Body.String())
 	}
 	var jobResp map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &jobResp)
+	if err := json.Unmarshal(w.Body.Bytes(), &jobResp); err != nil {
+		t.Fatalf("failed to unmarshal job response: %v", err)
+	}
 	if jobResp["name"] != "Test Job" {
 		t.Fatalf("Job name mismatch: %+v", jobResp)
 	}
@@ -53,7 +63,9 @@ func TestJobAPIHandlers(t *testing.T) {
 		t.Fatalf("List jobs failed: %d %s", w.Code, w.Body.String())
 	}
 	var jobs []map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &jobs)
+	if err := json.Unmarshal(w.Body.Bytes(), &jobs); err != nil {
+		t.Fatalf("failed to unmarshal jobs: %v", err)
+	}
 	if len(jobs) != 1 || jobs[0]["name"] != "Test Job" {
 		t.Fatalf("List jobs mismatch: %+v", jobs)
 	}
@@ -77,7 +89,9 @@ func TestJobAPIHandlers(t *testing.T) {
 		t.Fatalf("Get incidents failed: %d %s", w.Code, w.Body.String())
 	}
 	var incidents []map[string]interface{}
-	json.Unmarshal(w.Body.Bytes(), &incidents)
+	if err := json.Unmarshal(w.Body.Bytes(), &incidents); err != nil {
+		t.Fatalf("failed to unmarshal incidents: %v", err)
+	}
 	if len(incidents) != 0 {
 		t.Fatalf("Expected no incidents, got %+v", incidents)
 	}

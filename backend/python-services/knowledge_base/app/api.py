@@ -1,9 +1,13 @@
-from fastapi import FastAPI, Response
-from pydantic import BaseModel
+"""
+API endpoints for the Knowledge Base Service.
+Provides vector search over incident knowledge base using FAISS and sentence transformers.
+"""
+
 from typing import List
+from fastapi import FastAPI
+from pydantic import BaseModel
 import faiss
 from sentence_transformers import SentenceTransformer
-import numpy as np
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
 
@@ -42,10 +46,12 @@ index = faiss.IndexFlatL2(DIM)
 index.add(incident_embeddings.reshape(-1, DIM))  # type: ignore
 
 class SearchRequest(BaseModel):
+    """Request model for searching incidents."""
     query: str
     top_k: int = 3
 
 class SearchResult(BaseModel):
+    """Response model for a single search result."""
     id: int
     text: str
     resolution: str
@@ -55,12 +61,14 @@ add_metrics_endpoint(app, generate_latest, CONTENT_TYPE_LATEST)
 
 @app.get("/health")
 def health():
+    """Health check endpoint for the service."""
     logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.post("/search", response_model=List[SearchResult])
 def search_incidents(request: SearchRequest):
+    """Search the knowledge base for incidents similar to the query."""
     REQUESTS_TOTAL.labels(endpoint="/search").inc()
     try:
         logger.info(f"Received search query: '{request.query}' (top_k={request.top_k})")
