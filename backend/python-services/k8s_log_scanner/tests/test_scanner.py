@@ -23,25 +23,10 @@ class TestK8sLogScanner(unittest.TestCase):
     def test_list_clusters(self, mock_kubectl: MagicMock) -> None:
         """Test listing clusters"""
         mock_kubectl.return_value = '''
-        {
-          "contexts": [
-            {
-              "name": "eks-cluster-1",
-              "context": {
-                "cluster": "arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-1",
-                "user": "aws"
-              }
-            },
-            {
-              "name": "gke-cluster-1",
-              "context": {
-                "cluster": "gke_project-zone_gke-cluster-1",
-                "user": "gcp"
-              }
-            }
-          ]
-        }
-        '''
+CURRENT   NAME           CLUSTER                                                  AUTHINFO   NAMESPACE
+          eks-cluster-1  arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-1  aws
+          gke-cluster-1  gke_project-zone_gke-cluster-1                            gcp
+'''
         
         response = self.client.get("/clusters")
         self.assertEqual(response.status_code, 200)

@@ -1,0 +1,12 @@
+README.md
+setup.py
+app/__init__.py
+app/api.py
+k8s_log_scanner.egg-info/PKG-INFO
+k8s_log_scanner.egg-info/SOURCES.txt
+k8s_log_scanner.egg-info/dependency_links.txt
+k8s_log_scanner.egg-info/requires.txt
+k8s_log_scanner.egg-info/top_level.txt
+tests/__init__.py
+tests/conftest.py
+tests/test_scanner.py

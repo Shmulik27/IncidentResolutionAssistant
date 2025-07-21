@@ -4,4 +4,4 @@ httpx
 requests
 types-requests
 prometheus_client
-mypy 
+mypy

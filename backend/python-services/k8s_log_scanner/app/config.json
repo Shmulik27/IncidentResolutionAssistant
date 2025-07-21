@@ -1,0 +1,8 @@
+{
+  "LOG_ANALYZER_URL": "http://log-analyzer:8000/analyze",
+  "ROOT_CAUSE_PREDICTOR_URL": "http://root-cause-predictor:8000/predict",
+  "KNOWLEDGE_BASE_URL": "http://knowledge-base:8000/search",
+  "ACTION_RECOMMENDER_URL": "http://action-recommender:8000/recommend",
+  "INCIDENT_INTEGRATOR_URL": "http://incident-integrator:8000/incident",
+  "ENABLE_INCIDENT_INTEGRATION": true
+}

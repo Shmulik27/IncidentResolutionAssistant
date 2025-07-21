@@ -279,7 +279,7 @@ def get_pods_in_namespaces(kubeconfig_path: str, namespaces: List[str],
                     
         except Exception as e:
             logger.warning(f"Failed to get pods in namespace {namespace}: {e}")
-            continue
+            raise HTTPException(status_code=500, detail=str(e))
     
     return pods
 

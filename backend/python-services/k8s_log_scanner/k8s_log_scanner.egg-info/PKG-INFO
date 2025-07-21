@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: k8s_log_scanner
+Version: 0.1
+Requires-Dist: fastapi
+Requires-Dist: pytest
+Requires-Dist: httpx
+Requires-Dist: requests
+Requires-Dist: types-requests
+Requires-Dist: prometheus_client
+Requires-Dist: mypy
+Dynamic: requires-dist
