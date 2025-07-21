@@ -31,11 +31,6 @@ WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the k8s scanner service
-COPY k8s_log_scanner/ ./k8s_log_scanner/
-
-WORKDIR /app/k8s_log_scanner
-
 # Expose port
 EXPOSE 8000
 
