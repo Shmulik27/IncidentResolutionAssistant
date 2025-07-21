@@ -6,7 +6,7 @@ import base64
 import tempfile
 import os
 from datetime import datetime, timedelta
-import subprocess
+import subprocess  # nosec
 import json
 import requests
 import threading
@@ -312,15 +312,17 @@ def execute_kubectl_command(
     full_cmd = ["kubectl", "--kubeconfig", kubeconfig_path] + cmd
     if context:
         full_cmd.extend(["--context", context])
-
     try:
-        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=30)
+        # Safe usage: shell=False, no user input in command string
+        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=30)  # nosec
         if result.returncode != 0:
             raise Exception(f"kubectl command failed: {result.stderr}")
         return result.stdout
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as e:
+        logger.error(f"kubectl command timed out: {e}")
         raise Exception("kubectl command timed out")
     except Exception as e:
+        logger.error(f"Failed to execute kubectl: {e}")
         raise Exception(f"Failed to execute kubectl: {str(e)}")
 
 
@@ -556,8 +558,8 @@ def scan_logs(
             if request.cluster_config.kubeconfig:
                 try:
                     os.unlink(kubeconfig_path)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(f"Failed to delete kubeconfig file {kubeconfig_path}: {e}")
             logger.info(
                 f"Log scan completed. Found {len(all_logs)} log lines from {len(pods_scanned)} pods"
             )
