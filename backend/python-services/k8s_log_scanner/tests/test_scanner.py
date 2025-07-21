@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from app.api import app
 
@@ -20,7 +20,7 @@ class TestK8sLogScanner(unittest.TestCase):
         self.assertIn("k8s_scanner_requests_total", response.text)
 
     @patch('app.api.execute_kubectl_command')
-    def test_list_clusters(self, mock_kubectl) -> None:
+    def test_list_clusters(self, mock_kubectl: MagicMock) -> None:
         """Test listing clusters"""
         mock_kubectl.return_value = '''
         {
@@ -51,7 +51,7 @@ class TestK8sLogScanner(unittest.TestCase):
         self.assertEqual(data["clusters"][0]["name"], "eks-cluster-1")
 
     @patch('app.api.execute_kubectl_command')
-    def test_scan_logs_success(self, mock_kubectl) -> None:
+    def test_scan_logs_success(self, mock_kubectl: MagicMock) -> None:
         """Test successful log scanning"""
         # Mock kubectl commands
         mock_kubectl.side_effect = [
@@ -103,7 +103,7 @@ class TestK8sLogScanner(unittest.TestCase):
         self.assertEqual(response.status_code, 422)  # Validation error
 
     @patch('app.api.execute_kubectl_command')
-    def test_scan_logs_with_filters(self, mock_kubectl) -> None:
+    def test_scan_logs_with_filters(self, mock_kubectl: MagicMock) -> None:
         """Test log scanning with filters"""
         mock_kubectl.side_effect = [
             # get pods
@@ -151,7 +151,7 @@ class TestK8sLogScanner(unittest.TestCase):
             self.assertIn("Database", log)
 
     @patch('app.api.execute_kubectl_command')
-    def test_scan_logs_error_handling(self, mock_kubectl) -> None:
+    def test_scan_logs_error_handling(self, mock_kubectl: MagicMock) -> None:
         """Test error handling in log scanning"""
         mock_kubectl.side_effect = Exception("kubectl command failed")
 

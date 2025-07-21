@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response, HTTPException, Request
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Union, TypedDict, Any
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import base64
 import tempfile
@@ -34,21 +34,30 @@ ANALYSIS_LATENCY = Histogram('k8s_scanner_analysis_latency_seconds', 'Latency fo
 logger = setup_logging("k8s_scanner")
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
-DEFAULT_CONFIG = {
+
+class ConfigDict(TypedDict):
+    LOG_ANALYZER_URL: str
+    ROOT_CAUSE_PREDICTOR_URL: str
+    KNOWLEDGE_BASE_URL: str
+    ACTION_RECOMMENDER_URL: str
+    INCIDENT_INTEGRATOR_URL: str
+    ENABLE_INCIDENT_INTEGRATION: bool
+
+# Default configuration
+DEFAULT_CONFIG: ConfigDict = {
     "LOG_ANALYZER_URL": "http://log-analyzer:8000/analyze",
     "ROOT_CAUSE_PREDICTOR_URL": "http://root-cause-predictor:8000/predict",
     "KNOWLEDGE_BASE_URL": "http://knowledge-base:8000/search",
     "ACTION_RECOMMENDER_URL": "http://action-recommender:8000/recommend",
     "INCIDENT_INTEGRATOR_URL": "http://incident-integrator:8000/incident",
     "ENABLE_INCIDENT_INTEGRATION": True,
-    # Add feature flags or other config as needed
 }
 
-_config_cache: Optional[Dict[str, str | bool]] = None
+_config_cache: Optional[ConfigDict] = None
 _config_mtime: Optional[float] = None
 _config_lock = threading.Lock()
 
-def load_config() -> Dict[str, str | bool]:
+def load_config() -> ConfigDict:
     global _config_cache, _config_mtime
     with _config_lock:
         try:
@@ -56,24 +65,46 @@ def load_config() -> Dict[str, str | bool]:
             if _config_cache is not None and _config_mtime == mtime:
                 return _config_cache
             with open(CONFIG_PATH) as f:
-                config = json.load(f)
-            _config_cache = {**DEFAULT_CONFIG, **config}
+                config_data = json.load(f)
+            # Ensure type safety by only accepting known keys
+            config: ConfigDict = {
+                "LOG_ANALYZER_URL": str(config_data.get("LOG_ANALYZER_URL", DEFAULT_CONFIG["LOG_ANALYZER_URL"])),
+                "ROOT_CAUSE_PREDICTOR_URL": str(config_data.get("ROOT_CAUSE_PREDICTOR_URL", DEFAULT_CONFIG["ROOT_CAUSE_PREDICTOR_URL"])),
+                "KNOWLEDGE_BASE_URL": str(config_data.get("KNOWLEDGE_BASE_URL", DEFAULT_CONFIG["KNOWLEDGE_BASE_URL"])),
+                "ACTION_RECOMMENDER_URL": str(config_data.get("ACTION_RECOMMENDER_URL", DEFAULT_CONFIG["ACTION_RECOMMENDER_URL"])),
+                "INCIDENT_INTEGRATOR_URL": str(config_data.get("INCIDENT_INTEGRATOR_URL", DEFAULT_CONFIG["INCIDENT_INTEGRATOR_URL"])),
+                "ENABLE_INCIDENT_INTEGRATION": bool(config_data.get("ENABLE_INCIDENT_INTEGRATION", DEFAULT_CONFIG["ENABLE_INCIDENT_INTEGRATION"])),
+            }
+            _config_cache = config
             _config_mtime = mtime
-            return _config_cache
+            return config
         except FileNotFoundError:
             with open(CONFIG_PATH, "w") as f:
                 json.dump(DEFAULT_CONFIG, f, indent=2)
             _config_cache = DEFAULT_CONFIG.copy()
             _config_mtime = os.path.getmtime(CONFIG_PATH)
-            return _config_cache
+            return DEFAULT_CONFIG.copy()
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
             return DEFAULT_CONFIG.copy()
 
-def save_config(new_config: dict) -> dict:
+def save_config(new_config: dict) -> ConfigDict:
     with _config_lock:
         config = load_config()
-        config.update(new_config)
+        # Only update known keys with proper type conversion
+        if "LOG_ANALYZER_URL" in new_config:
+            config["LOG_ANALYZER_URL"] = str(new_config["LOG_ANALYZER_URL"])
+        if "ROOT_CAUSE_PREDICTOR_URL" in new_config:
+            config["ROOT_CAUSE_PREDICTOR_URL"] = str(new_config["ROOT_CAUSE_PREDICTOR_URL"])
+        if "KNOWLEDGE_BASE_URL" in new_config:
+            config["KNOWLEDGE_BASE_URL"] = str(new_config["KNOWLEDGE_BASE_URL"])
+        if "ACTION_RECOMMENDER_URL" in new_config:
+            config["ACTION_RECOMMENDER_URL"] = str(new_config["ACTION_RECOMMENDER_URL"])
+        if "INCIDENT_INTEGRATOR_URL" in new_config:
+            config["INCIDENT_INTEGRATOR_URL"] = str(new_config["INCIDENT_INTEGRATOR_URL"])
+        if "ENABLE_INCIDENT_INTEGRATION" in new_config:
+            config["ENABLE_INCIDENT_INTEGRATION"] = bool(new_config["ENABLE_INCIDENT_INTEGRATION"])
+        
         with open(CONFIG_PATH, "w") as f:
             json.dump(config, f, indent=2)
         # Update cache and mtime
@@ -86,12 +117,12 @@ def save_config(new_config: dict) -> dict:
 def get_config() -> dict:
     config = load_config()
     # Mask secrets in GET
-    masked = {}
+    masked: Dict[str, str] = {}
     for k, v in config.items():
         if any(s in k for s in ["TOKEN", "SECRET", "PASSWORD", "WEBHOOK"]):
             masked[k] = "****" if v else ""
         else:
-            masked[k] = v
+            masked[k] = str(v)
     return masked
 
 @app.post("/config")
@@ -397,10 +428,10 @@ def scan_logs(request: LogScanRequest, req: Request, job_id: str = "") -> LogSca
             logger.info(f"Log scan completed. Found {len(all_logs)} log lines from {len(pods_scanned)} pods")
             incident_analysis = None
             config = load_config()
-            LOG_ANALYZER_URL = config["LOG_ANALYZER_URL"]
-            ROOT_CAUSE_PREDICTOR_URL = config["ROOT_CAUSE_PREDICTOR_URL"]
-            KNOWLEDGE_BASE_URL = config["KNOWLEDGE_BASE_URL"]
-            ACTION_RECOMMENDER_URL = config["ACTION_RECOMMENDER_URL"]
+            LOG_ANALYZER_URL: str = config["LOG_ANALYZER_URL"]
+            ROOT_CAUSE_PREDICTOR_URL: str = config["ROOT_CAUSE_PREDICTOR_URL"]
+            KNOWLEDGE_BASE_URL: str = config["KNOWLEDGE_BASE_URL"]
+            ACTION_RECOMMENDER_URL: str = config["ACTION_RECOMMENDER_URL"]
             if all_logs:
                 logger.info(f"Starting incident analysis for job_id={job_id}")
                 with ANALYSIS_LATENCY.labels(endpoint="/scan-logs").time():
@@ -453,7 +484,7 @@ def scan_logs(request: LogScanRequest, req: Request, job_id: str = "") -> LogSca
                 config = load_config()
                 if config.get("ENABLE_INCIDENT_INTEGRATION", True) and is_critical_root_cause(prediction):
                     try:
-                        integrator_url = config.get("INCIDENT_INTEGRATOR_URL", "http://incident-integrator:8000/incident")
+                        integrator_url: str = config.get("INCIDENT_INTEGRATOR_URL", "http://incident-integrator:8000/incident")
                         incident_payload = {
                             "error_summary": prediction.get("root_cause") or prediction.get("prediction"),
                             "error_details": str(analysis),
@@ -500,7 +531,7 @@ def scan_logs_async(request: LogScanRequest, req: Request) -> dict:
     job_id = str(uuid.uuid4())
     with scan_jobs_lock:
         scan_jobs[job_id] = {"status": "pending", "result": None, "error": None}
-    def run_job():
+    def run_job() -> None:
         try:
             result = scan_logs(request, req, job_id=job_id)
             with scan_jobs_lock:
