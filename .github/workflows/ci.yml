@@ -460,4 +460,5 @@ jobs:
           git add .
           git commit -m "ci: auto-format code with black and ruff" || exit 0
           git push
-          exit 0 
+          echo "Formatting was auto-fixed and pushed. Please re-run the workflow."
+          exit 1 
