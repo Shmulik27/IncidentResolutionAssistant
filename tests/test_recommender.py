@@ -5,7 +5,8 @@ from action_recommender.app.api import app
 
 client = TestClient(app)
 
+
 def test_recommend_action():
     """Test the recommend_action endpoint."""
     # Add your test logic here
-    pass 
+    pass
