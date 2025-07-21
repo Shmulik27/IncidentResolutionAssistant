@@ -11,14 +11,55 @@ on:
       - '**'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      go_backend: ${{ steps.filter.outputs.go_backend }}
+      log_analyzer: ${{ steps.filter.outputs.log_analyzer }}
+      action_recommender: ${{ steps.filter.outputs.action_recommender }}
+      knowledge_base: ${{ steps.filter.outputs.knowledge_base }}
+      root_cause_predictor: ${{ steps.filter.outputs.root_cause_predictor }}
+      incident_integrator: ${{ steps.filter.outputs.incident_integrator }}
+      k8s_log_scanner: ${{ steps.filter.outputs.k8s_log_scanner }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            go_backend:
+              - 'backend/go-backend/**'
+              - '.github/workflows/ci.yml'
+            log_analyzer:
+              - 'backend/python-services/log_analyzer/**'
+              - 'backend/python-services/common/**'
+              - '.github/workflows/ci.yml'
+            action_recommender:
+              - 'backend/python-services/action_recommender/**'
+              - 'backend/python-services/common/**'
+              - '.github/workflows/ci.yml'
+            knowledge_base:
+              - 'backend/python-services/knowledge_base/**'
+              - 'backend/python-services/common/**'
+              - '.github/workflows/ci.yml'
+            root_cause_predictor:
+              - 'backend/python-services/root_cause_predictor/**'
+              - 'backend/python-services/common/**'
+              - '.github/workflows/ci.yml'
+            incident_integrator:
+              - 'backend/python-services/incident_integrator/**'
+              - 'backend/python-services/common/**'
+              - '.github/workflows/ci.yml'
+            k8s_log_scanner:
+              - 'backend/python-services/k8s_log_scanner/**'
+              - 'backend/python-services/common/**'
+              - '.github/workflows/ci.yml'
+
   go-backend:
     name: Go Backend CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/go-backend/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.go_backend == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -64,12 +105,8 @@ jobs:
   log-analyzer:
     name: Log Analyzer CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/python-services/log_analyzer/') ||
-        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.log_analyzer == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -118,12 +155,8 @@ jobs:
   action-recommender:
     name: Action Recommender CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/python-services/action_recommender/') ||
-        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.action_recommender == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -169,12 +202,8 @@ jobs:
   knowledge-base:
     name: Knowledge Base CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/python-services/knowledge_base/') ||
-        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.knowledge_base == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -220,12 +249,8 @@ jobs:
   root-cause-predictor:
     name: Root Cause Predictor CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/python-services/root_cause_predictor/') ||
-        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.root_cause_predictor == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -271,12 +296,8 @@ jobs:
   incident-integrator:
     name: Incident Integrator CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/python-services/incident_integrator/') ||
-        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.incident_integrator == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -322,12 +343,8 @@ jobs:
   k8s-log-scanner:
     name: K8s Log Scanner CI
     runs-on: ubuntu-latest
-    if: |
-      github.event_name == 'push' || github.event_name == 'pull_request' && (
-        contains(github.event.head_commit.message, 'backend/python-services/k8s_log_scanner/') ||
-        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
-        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
-      )
+    needs: changes
+    if: needs.changes.outputs.k8s_log_scanner == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
