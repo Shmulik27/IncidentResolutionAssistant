@@ -25,7 +25,7 @@ PYTHON_SERVICES_PATH="$(pwd)/backend/python-services"
 run_test "Go Linter (golangci-lint)" "cd backend/go-backend && golangci-lint run ./... && cd - > /dev/null"
 
 # Python linter (ruff) and type checker (mypy) per service, matching CI
-for service in log_analyzer action_recommender knowledge_base root_cause_predictor; do
+for service in log_analyzer action_recommender knowledge_base root_cause_predictor incident_integrator; do
   if [ "$service" = "log_analyzer" ]; then
     (cd backend/python-services/log_analyzer && source venv/bin/activate && python -m spacy download en_core_web_sm)
   fi

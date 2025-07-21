@@ -7,12 +7,12 @@ from fastapi.testclient import TestClient
 from app.api import app
 
 class TestIntegratorIntegration(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.client = TestClient(app)
 
     @patch("app.api.get_github_repo")
     @patch("app.api.get_jira_client")
-    def test_incident_endpoint(self, mock_jira, mock_github):
+    def test_incident_endpoint(self, mock_jira: MagicMock, mock_github: MagicMock) -> None:
         mock_repo = MagicMock()
         mock_github.return_value = mock_repo
         mock_repo.get_blame.return_value = []

@@ -7,7 +7,7 @@ from app.api import app
 
 @patch('app.api.get_github_repo')
 @patch('app.api.get_jira_client')
-def test_e2e_incident_flow(mock_jira, mock_github):
+def test_e2e_incident_flow(mock_jira: MagicMock, mock_github: MagicMock) -> None:
     client = TestClient(app)
     mock_repo = MagicMock()
     mock_github.return_value = mock_repo

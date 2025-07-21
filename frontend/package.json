@@ -24,10 +24,12 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "PORT=3001 react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "cy:run": "start-server-and-test start http://localhost:3001 cypress:run",
+    "cypress:run": "cypress run"
   },
   "eslintConfig": {
     "extends": [
@@ -53,7 +55,9 @@
     "@babel/preset-env": "^7.28.0",
     "@babel/preset-react": "^7.27.1",
     "babel-jest": "^30.0.4",
+    "cypress": "^14.5.2",
     "identity-obj-proxy": "^3.0.0",
-    "jest": "^27.5.1"
+    "jest": "^27.5.1",
+    "start-server-and-test": "^2.0.12"
   }
 }

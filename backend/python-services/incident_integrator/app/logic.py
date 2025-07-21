@@ -12,6 +12,7 @@ from github import Github
 from jira import JIRA
 from dotenv import load_dotenv
 import requests
+from typing import Any
 
 load_dotenv()
 
@@ -45,7 +46,7 @@ __all__ = [
     "get_github_repo", "get_jira_client", "verify_signature", "github_webhook_logic"
 ]
 
-def load_config():
+def load_config() -> dict[str, Any]:
     """
     Load the service configuration from file, creating it with defaults if missing.
     """
@@ -56,7 +57,7 @@ def load_config():
         return json.load(f)
 
 
-def save_config(config):
+def save_config(config: dict[str, Any]) -> None:
     """
     Save the provided configuration dictionary to file.
     """
@@ -64,7 +65,7 @@ def save_config(config):
         json.dump(config, f, indent=2)
 
 
-def find_existing_jira(summary, jira_client, jira_project):
+def find_existing_jira(summary: str, jira_client: Any, jira_project: str) -> Any:
     """
     Search for an existing Jira issue matching the summary in the given project.
     """
@@ -75,7 +76,7 @@ def find_existing_jira(summary, jira_client, jira_project):
     return None
 
 
-def send_slack_notification(message):
+def send_slack_notification(message: str) -> None:
     """
     Send a notification to Slack using the configured webhook URL.
     """
@@ -91,7 +92,7 @@ def send_slack_notification(message):
         logging.error(f"Slack notification error: {e}")
 
 
-def handle_incident_logic(event, get_code_owner, get_codeowner_from_file, repo, jira, jira_project):
+def handle_incident_logic(event: Any, get_code_owner: Any, get_codeowner_from_file: Any, repo: Any, jira: Any, jira_project: str) -> dict[str, Any]:
     """
     Handle a new incident event: create a Jira issue, assign it, and notify Slack.
     """
@@ -120,7 +121,7 @@ def handle_incident_logic(event, get_code_owner, get_codeowner_from_file, repo, 
     return {"jira_issue": issue.key, "assigned_to": developer}
 
 
-def verify_signature(request_body, secret, signature):
+def verify_signature(request_body: bytes, secret: str, signature: str) -> bool:
     """
     Verify the HMAC signature of a webhook request.
     """
@@ -129,7 +130,7 @@ def verify_signature(request_body, secret, signature):
     return hmac.compare_digest(expected, signature)
 
 
-def github_webhook_logic(payload, webhook_secret, signature, jira_client):
+def github_webhook_logic(payload: dict[str, Any], webhook_secret: str, signature: str, jira_client: Any) -> dict[str, str]:
     """
     Handle GitHub webhook events, closing Jira tickets when PRs are merged.
     """
@@ -150,7 +151,7 @@ def github_webhook_logic(payload, webhook_secret, signature, jira_client):
     return {"status": "ok"}
 
 
-def get_github_repo(github_token, github_repo):
+def get_github_repo(github_token: str, github_repo: str) -> Any:
     """
     Get a GitHub repository object using the provided token and repo name.
     """
@@ -162,7 +163,7 @@ def get_github_repo(github_token, github_repo):
     return github.get_repo(github_repo)
 
 
-def get_jira_client(jira_server, jira_user, jira_token):
+def get_jira_client(jira_server: str, jira_user: str, jira_token: str) -> Any:
     """
     Get a Jira client object using the provided server, user, and token.
     """

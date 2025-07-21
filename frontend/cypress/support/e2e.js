@@ -1,0 +1,1 @@
+// This is a default Cypress support file. You can add custom commands or setup here if needed. 

@@ -1,5 +1,7 @@
+from typing import Any
 
-def get_code_owner(repo, file_path, line_number):
+
+def get_code_owner(repo: Any, file_path: str, line_number: int) -> str | None:
     """
     Use git blame to find the last committer for the given file and line.
     """
@@ -12,7 +14,7 @@ def get_code_owner(repo, file_path, line_number):
         print(f"Blame failed: {e}")
     return None
 
-def get_codeowner_from_file(repo, file_path):
+def get_codeowner_from_file(repo: Any, file_path: str) -> str | None:
     """
     Parse CODEOWNERS file if present.
     """

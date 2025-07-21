@@ -3,13 +3,22 @@ name: CI/CD
 on:
   push:
     branches: [main]
+    paths:
+      - '**'
   pull_request:
     branches: [main]
+    paths:
+      - '**'
 
 jobs:
   go-backend:
     name: Go Backend CI
     runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/go-backend/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -52,67 +61,311 @@ jobs:
         run: |
           docker push ghcr.io/shmulik27/go-backend:${{ github.sha }}
 
-  python-services:
-    name: Python Services CI
+  log-analyzer:
+    name: Log Analyzer CI
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        service:
-          - log_analyzer
-          - action_recommender
-          - knowledge_base
-          - root_cause_predictor
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/python-services/log_analyzer/') ||
+        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-
       - name: Install ruff and pytest
         run: |
           pip install ruff pytest
-
       - name: Install dependencies
         run: |
-          if [ -f backend/python-services/${{ matrix.service }}/requirements.txt ]; then
-            python -m pip install -r backend/python-services/${{ matrix.service }}/requirements.txt
+          if [ -f backend/python-services/log_analyzer/requirements.txt ]; then
+            python -m pip install -r backend/python-services/log_analyzer/requirements.txt
           fi
-
-      - name: Install spaCy English model (log_analyzer only)
-        if: matrix.service == 'log_analyzer'
+      - name: Install spaCy English model
         run: |
           python -m spacy download en_core_web_sm
-
       - name: Lint
         run: |
-          cd backend/python-services/${{ matrix.service }}
+          cd backend/python-services/log_analyzer
           ruff check .
       - name: Type check with mypy
         run: |
           pip install mypy
-          cd backend/python-services/${{ matrix.service }}
+          cd backend/python-services/log_analyzer
           mypy --explicit-package-bases app tests
-
       - name: Test
         run: |
-          cd backend/python-services/${{ matrix.service }}
+          cd backend/python-services/log_analyzer
           PYTHONPATH=../ pytest
-
       - name: Build Docker image
         run: |
-          cd backend/python-services/${{ matrix.service }}
-          docker build -t ghcr.io/shmulik27/${{ matrix.service }}:${{ github.sha }} .
-
+          cd backend/python-services/log_analyzer
+          docker build -t ghcr.io/shmulik27/log_analyzer:${{ github.sha }} .
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Push Docker image
         run: |
-          docker push ghcr.io/shmulik27/${{ matrix.service }}:${{ github.sha }} 
+          docker push ghcr.io/shmulik27/log_analyzer:${{ github.sha }}
+
+  action-recommender:
+    name: Action Recommender CI
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/python-services/action_recommender/') ||
+        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install ruff and pytest
+        run: |
+          pip install ruff pytest
+      - name: Install dependencies
+        run: |
+          if [ -f backend/python-services/action_recommender/requirements.txt ]; then
+            python -m pip install -r backend/python-services/action_recommender/requirements.txt
+          fi
+      - name: Lint
+        run: |
+          cd backend/python-services/action_recommender
+          ruff check .
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          cd backend/python-services/action_recommender
+          mypy --explicit-package-bases app tests
+      - name: Test
+        run: |
+          cd backend/python-services/action_recommender
+          PYTHONPATH=../ pytest
+      - name: Build Docker image
+        run: |
+          cd backend/python-services/action_recommender
+          docker build -t ghcr.io/shmulik27/action_recommender:${{ github.sha }} .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/shmulik27/action_recommender:${{ github.sha }}
+
+  knowledge-base:
+    name: Knowledge Base CI
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/python-services/knowledge_base/') ||
+        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install ruff and pytest
+        run: |
+          pip install ruff pytest
+      - name: Install dependencies
+        run: |
+          if [ -f backend/python-services/knowledge_base/requirements.txt ]; then
+            python -m pip install -r backend/python-services/knowledge_base/requirements.txt
+          fi
+      - name: Lint
+        run: |
+          cd backend/python-services/knowledge_base
+          ruff check .
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          cd backend/python-services/knowledge_base
+          mypy --explicit-package-bases app tests
+      - name: Test
+        run: |
+          cd backend/python-services/knowledge_base
+          PYTHONPATH=../ pytest
+      - name: Build Docker image
+        run: |
+          cd backend/python-services/knowledge_base
+          docker build -t ghcr.io/shmulik27/knowledge_base:${{ github.sha }} .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/shmulik27/knowledge_base:${{ github.sha }}
+
+  root-cause-predictor:
+    name: Root Cause Predictor CI
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/python-services/root_cause_predictor/') ||
+        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install ruff and pytest
+        run: |
+          pip install ruff pytest
+      - name: Install dependencies
+        run: |
+          if [ -f backend/python-services/root_cause_predictor/requirements.txt ]; then
+            python -m pip install -r backend/python-services/root_cause_predictor/requirements.txt
+          fi
+      - name: Lint
+        run: |
+          cd backend/python-services/root_cause_predictor
+          ruff check .
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          cd backend/python-services/root_cause_predictor
+          mypy --explicit-package-bases app tests
+      - name: Test
+        run: |
+          cd backend/python-services/root_cause_predictor
+          PYTHONPATH=../ pytest
+      - name: Build Docker image
+        run: |
+          cd backend/python-services/root_cause_predictor
+          docker build -t ghcr.io/shmulik27/root_cause_predictor:${{ github.sha }} .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/shmulik27/root_cause_predictor:${{ github.sha }}
+
+  incident-integrator:
+    name: Incident Integrator CI
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/python-services/incident_integrator/') ||
+        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install ruff and pytest
+        run: |
+          pip install ruff pytest
+      - name: Install dependencies
+        run: |
+          if [ -f backend/python-services/incident_integrator/requirements.txt ]; then
+            python -m pip install -r backend/python-services/incident_integrator/requirements.txt
+          fi
+      - name: Lint
+        run: |
+          cd backend/python-services/incident_integrator
+          ruff check .
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          cd backend/python-services/incident_integrator
+          mypy --explicit-package-bases app tests
+      - name: Test
+        run: |
+          cd backend/python-services/incident_integrator
+          PYTHONPATH=../ pytest
+      - name: Build Docker image
+        run: |
+          cd backend/python-services/incident_integrator
+          docker build -t ghcr.io/shmulik27/incident_integrator:${{ github.sha }} .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/shmulik27/incident_integrator:${{ github.sha }}
+
+  k8s-log-scanner:
+    name: K8s Log Scanner CI
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'push' || github.event_name == 'pull_request' && (
+        contains(github.event.head_commit.message, 'backend/python-services/k8s_log_scanner/') ||
+        contains(github.event.head_commit.message, 'backend/python-services/common/') ||
+        contains(github.event.head_commit.message, '.github/workflows/ci.yml')
+      )
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install ruff and pytest
+        run: |
+          pip install ruff pytest
+      - name: Install dependencies
+        run: |
+          if [ -f backend/python-services/k8s_log_scanner/requirements.txt ]; then
+            python -m pip install -r backend/python-services/k8s_log_scanner/requirements.txt
+          fi
+      - name: Lint
+        run: |
+          cd backend/python-services/k8s_log_scanner
+          ruff check .
+      - name: Type check with mypy
+        run: |
+          pip install mypy
+          cd backend/python-services/k8s_log_scanner
+          mypy --explicit-package-bases app tests
+      - name: Test
+        run: |
+          cd backend/python-services/k8s_log_scanner
+          PYTHONPATH=../ pytest
+      - name: Build Docker image
+        run: |
+          cd backend/python-services/k8s_log_scanner
+          docker build -t ghcr.io/shmulik27/k8s_log_scanner:${{ github.sha }} .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push Docker image
+        run: |
+          docker push ghcr.io/shmulik27/k8s_log_scanner:${{ github.sha }} 

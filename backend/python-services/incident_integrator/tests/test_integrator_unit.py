@@ -6,10 +6,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app.api import app
 
 class TestIntegratorUnit(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.client = TestClient(app)
 
-    def test_docs_endpoint(self):
+    def test_docs_endpoint(self) -> None:
         response = self.client.get("/docs")
         self.assertEqual(response.status_code, 200)
 
