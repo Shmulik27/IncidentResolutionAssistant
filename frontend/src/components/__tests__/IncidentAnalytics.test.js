@@ -32,6 +32,9 @@ describe('IncidentAnalytics recent incidents', () => {
   it('shows info message when no incidents', async () => {
     api.getRecentIncidents.mockResolvedValue([]);
     render(<IncidentAnalytics active={true} />);
+    // Switch to the "Recent Incidents Details" tab
+    const tab = await screen.findByRole('tab', { name: /recent incidents details/i });
+    tab.click();
     expect(await screen.findByText(/no recent incidents found/i)).toBeInTheDocument();
   });
 }); 

@@ -3,12 +3,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import K8sLogScanner from '../K8sLogScanner';
 import { api } from '../../services/api';
+import { act } from 'react';
+import { NotificationContext } from '../../App';
 
 jest.mock('../../services/api');
 
 const mockNotify = jest.fn();
 
-const NotificationContext = React.createContext({ notify: mockNotify });
+beforeEach(() => {
+  mockNotify.mockReset();
+});
 
 function renderWithContext(ui) {
   return render(
@@ -50,41 +54,97 @@ describe('K8sLogScanner scheduled jobs', () => {
   });
 
   it('renders and creates a new job', async () => {
+    // Ensure cluster and namespace mocks are set
+    api.getK8sNamespaces.mockResolvedValue({ namespaces: ['default'] });
+    api.createLogScanJob = jest.fn().mockResolvedValue({ status: 'ok' });
     renderWithContext(<K8sLogScanner />);
     // Open the job creation form
     const createBtn = await screen.findByRole('button', { name: /create new job/i });
-    fireEvent.click(createBtn);
+    await act(async () => {
+      fireEvent.click(createBtn);
+    });
     // Wait for cluster select to appear
-    const clusterSelect = await screen.findByLabelText(/cluster/i);
-    fireEvent.mouseDown(clusterSelect);
+    const clusterSelect = screen.getByRole('combobox');
+    await act(async () => {
+      fireEvent.mouseDown(clusterSelect);
+    });
     const option = await screen.findByText(/test cluster/i);
-    fireEvent.click(option);
+    await act(async () => {
+      fireEvent.click(option);
+    });
+    // Wait for namespace checkbox to appear
+    const namespaceCheckbox = await screen.findByRole('checkbox', { name: /default/i });
+    await act(async () => {
+      fireEvent.click(namespaceCheckbox);
+    });
     // Fill in job name
-    fireEvent.change(screen.getByLabelText(/job name/i), { target: { value: 'My Job' } });
-    // Fill in namespace
-    fireEvent.change(screen.getByLabelText(/namespace/i), { target: { value: 'default' } });
-    // Fill in schedule
-    fireEvent.change(screen.getByLabelText(/schedule/i), { target: { value: '0 0 * * *' } });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/job name/i), { target: { value: 'My Job' } });
+    });
+    // Fill in interval
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText(/interval/i), { target: { value: '5' } });
+    });
     // Create job
     const createBtn2 = screen.getByRole('button', { name: /create job/i });
     expect(createBtn2).not.toBeDisabled();
-    fireEvent.click(createBtn2);
-    await waitFor(() => expect(api.createScheduledJob).toHaveBeenCalled());
+    await act(async () => {
+      fireEvent.click(createBtn2);
+    });
+    await act(async () => {
+      await waitFor(() => expect(api.createLogScanJob).toHaveBeenCalled(), { timeout: 2000 });
+      await waitFor(() => expect(mockNotify).toHaveBeenCalled(), { timeout: 2000 });
+    });
   });
 
   it('deletes a job and shows notification', async () => {
+    // Ensure job mock is set
+    api.listLogScanJobs.mockResolvedValue([
+      {
+        id: 'job1',
+        name: 'Test Job',
+        namespace: 'default',
+        logLevels: ['ERROR'],
+        interval: 300,
+        createdAt: new Date().toISOString(),
+        lastRun: null,
+        pods: [],
+        cluster: 'test-cluster-arn',
+      }
+    ]);
+    api.deleteLogScanJob = jest.fn().mockResolvedValue({ status: 'ok' });
     renderWithContext(<K8sLogScanner />);
     // Wait for job card
-    const jobCard = await screen.findByText(/test job/i);
+    const jobCard = await screen.findByText(/test job/i, { exact: false });
     // Find delete button
     const deleteBtn = screen.getByRole('button', { name: /delete job/i });
-    fireEvent.click(deleteBtn);
-    await waitFor(() => expect(api.deleteScheduledJob).toHaveBeenCalled());
-    await waitFor(() => expect(mockNotify).toHaveBeenCalled());
+    await act(async () => {
+      fireEvent.click(deleteBtn);
+    });
+    await act(async () => {
+      await waitFor(() => expect(api.deleteLogScanJob).toHaveBeenCalled(), { timeout: 2000 });
+      await waitFor(() => expect(mockNotify).toHaveBeenCalled(), { timeout: 2000 });
+    });
   });
 
   it('shows last run as Never if not run', async () => {
+    // Ensure job mock is set
+    api.listLogScanJobs.mockResolvedValue([
+      {
+        id: 'job1',
+        name: 'Test Job',
+        namespace: 'default',
+        logLevels: ['ERROR'],
+        interval: 300,
+        createdAt: new Date().toISOString(),
+        lastRun: null,
+        pods: [],
+        cluster: 'test-cluster-arn',
+      }
+    ]);
     renderWithContext(<K8sLogScanner />);
-    expect(await screen.findByText(/last run: never/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/last run: never/i, { exact: false })
+    ).toBeInTheDocument();
   });
 }); 
