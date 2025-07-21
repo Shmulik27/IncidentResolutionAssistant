@@ -21,6 +21,7 @@ def setup_logging(service_name: str = "service", level=logging.INFO):
 
 def add_metrics_endpoint(app: FastAPI, get_metrics_func, content_type):
     from fastapi import Response
+
     @app.get("/metrics")
     def metrics():
-        return Response(get_metrics_func(), media_type=content_type) 
+        return Response(get_metrics_func(), media_type=content_type)
