@@ -1,9 +1,11 @@
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 import unittest
 from unittest.mock import MagicMock
 from app.utils import get_code_owner, get_codeowner_from_file
+
 
 class TestUtils(unittest.TestCase):
     def test_get_code_owner(self) -> None:
@@ -24,5 +26,6 @@ class TestUtils(unittest.TestCase):
         owner = get_codeowner_from_file(repo, "file.py")
         self.assertEqual(owner, "dev2")
 
+
 if __name__ == "__main__":
-    unittest.main() 
+    unittest.main()

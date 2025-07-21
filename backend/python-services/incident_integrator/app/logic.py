@@ -38,13 +38,20 @@ DEFAULT_CONFIG = {
     "request_timeout": 30,
     "max_retries": 3,
     "log_level": "INFO",
-    "cache_ttl": 60
+    "cache_ttl": 60,
 }
 
 __all__ = [
-    "load_config", "save_config", "handle_incident_logic", "send_slack_notification",
-    "get_github_repo", "get_jira_client", "verify_signature", "github_webhook_logic"
+    "load_config",
+    "save_config",
+    "handle_incident_logic",
+    "send_slack_notification",
+    "get_github_repo",
+    "get_jira_client",
+    "verify_signature",
+    "github_webhook_logic",
 ]
+
 
 def load_config() -> dict[str, Any]:
     """
@@ -85,14 +92,21 @@ def send_slack_notification(message: str) -> None:
         logging.warning("SLACK_WEBHOOK_URL not set, skipping Slack notification.")
         return
     try:
-        resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message})
+        resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message}, timeout=10)
         if resp.status_code != 200:
             logging.error(f"Slack notification failed: {resp.text}")
     except Exception as e:
         logging.error(f"Slack notification error: {e}")
 
 
-def handle_incident_logic(event: Any, get_code_owner: Any, get_codeowner_from_file: Any, repo: Any, jira: Any, jira_project: str) -> dict[str, Any]:
+def handle_incident_logic(
+    event: Any,
+    get_code_owner: Any,
+    get_codeowner_from_file: Any,
+    repo: Any,
+    jira: Any,
+    jira_project: str,
+) -> dict[str, Any]:
     """
     Handle a new incident event: create a Jira issue, assign it, and notify Slack.
     """
@@ -106,10 +120,10 @@ def handle_incident_logic(event: Any, get_code_owner: Any, get_codeowner_from_fi
     if not developer:
         developer = repo.owner.login
     issue_dict = {
-        'project': {'key': jira_project},
-        'summary': f"Incident: {event.error_summary}",
-        'description': event.error_details,
-        'issuetype': {'name': 'Bug'},
+        "project": {"key": jira_project},
+        "summary": f"Incident: {event.error_summary}",
+        "description": event.error_details,
+        "issuetype": {"name": "Bug"},
     }
     issue = jira.create_issue(fields=issue_dict)
     try:
@@ -117,7 +131,9 @@ def handle_incident_logic(event: Any, get_code_owner: Any, get_codeowner_from_fi
     except Exception as e:
         logging.warning(f"Could not assign Jira to {developer}: {e}")
     logging.info(f"Created Jira {issue.key} for {developer}")
-    send_slack_notification(f":rotating_light: New Incident Created: {event.error_summary}\nAssigned to: {developer}\nJira: {issue.key}")
+    send_slack_notification(
+        f":rotating_light: New Incident Created: {event.error_summary}\nAssigned to: {developer}\nJira: {issue.key}"
+    )
     return {"jira_issue": issue.key, "assigned_to": developer}
 
 
@@ -130,22 +146,29 @@ def verify_signature(request_body: bytes, secret: str, signature: str) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
-def github_webhook_logic(payload: dict[str, Any], webhook_secret: str, signature: str, jira_client: Any) -> dict[str, str]:
+def github_webhook_logic(
+    payload: dict[str, Any], webhook_secret: str, signature: str, jira_client: Any
+) -> dict[str, str]:
     """
     Handle GitHub webhook events, closing Jira tickets when PRs are merged.
     """
     import re
+
     if not signature or not webhook_secret:
         raise ValueError("Missing signature or webhook secret")
     # PR merge referencing a Jira ticket
-    if payload.get("action") == "closed" and payload.get("pull_request", {}).get("merged"):
+    if payload.get("action") == "closed" and payload.get("pull_request", {}).get(
+        "merged"
+    ):
         pr = payload["pull_request"]
-        matches = re.findall(r'([A-Z]+-\d+)', pr["title"] + pr.get("body", ""))
+        matches = re.findall(r"([A-Z]+-\d+)", pr["title"] + pr.get("body", ""))
         for ticket in matches:
             try:
                 jira_client.transition_issue(ticket, "Done")
                 logging.info(f"Closed Jira {ticket} due to PR merge")
-                send_slack_notification(f":white_check_mark: Incident Resolved: {ticket}\nClosed by PR: {pr['html_url']}")
+                send_slack_notification(
+                    f":white_check_mark: Incident Resolved: {ticket}\nClosed by PR: {pr['html_url']}"
+                )
             except Exception as e:
                 logging.error(f"Failed to close Jira ticket {ticket}: {e}")
     return {"status": "ok"}
@@ -173,4 +196,4 @@ def get_jira_client(jira_server: str, jira_user: str, jira_token: str) -> Any:
         raise ValueError("JIRA_USER environment variable is not set")
     if not jira_token:
         raise ValueError("JIRA_TOKEN environment variable is not set")
-    return JIRA(server=jira_server, basic_auth=(jira_user, jira_token)) 
+    return JIRA(server=jira_server, basic_auth=(jira_user, jira_token))

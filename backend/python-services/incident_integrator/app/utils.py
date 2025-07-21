@@ -14,6 +14,7 @@ def get_code_owner(repo: Any, file_path: str, line_number: int) -> str | None:
         print(f"Blame failed: {e}")
     return None
 
+
 def get_codeowner_from_file(repo: Any, file_path: str) -> str | None:
     """
     Parse CODEOWNERS file if present.
@@ -26,4 +27,4 @@ def get_codeowner_from_file(repo: Any, file_path: str) -> str | None:
                 return line.split()[-1].replace("@", "")
     except Exception as e:
         print(f"CODEOWNERS not found or parse error: {e}")
-    return None 
+    return None

@@ -116,7 +116,7 @@ jobs:
           python-version: '3.10'
       - name: Install ruff and pytest
         run: |
-          pip install ruff pytest
+          pip install ruff pytest black bandit
       - name: Install dependencies
         run: |
           if [ -f backend/python-services/log_analyzer/requirements.txt ]; then
@@ -129,11 +129,19 @@ jobs:
         run: |
           cd backend/python-services/log_analyzer
           ruff check .
+      - name: Format code
+        run: |
+          cd backend/python-services/log_analyzer
+          black --check .
       - name: Type check with mypy
         run: |
           pip install mypy
           cd backend/python-services/log_analyzer
           mypy --explicit-package-bases app tests
+      - name: Security check
+        run: |
+          cd backend/python-services/log_analyzer
+          bandit -r app
       - name: Test
         run: |
           cd backend/python-services/log_analyzer
@@ -166,7 +174,7 @@ jobs:
           python-version: '3.10'
       - name: Install ruff and pytest
         run: |
-          pip install ruff pytest
+          pip install ruff pytest black bandit
       - name: Install dependencies
         run: |
           if [ -f backend/python-services/action_recommender/requirements.txt ]; then
@@ -176,11 +184,19 @@ jobs:
         run: |
           cd backend/python-services/action_recommender
           ruff check .
+      - name: Format code
+        run: |
+          cd backend/python-services/action_recommender
+          black --check .
       - name: Type check with mypy
         run: |
           pip install mypy
           cd backend/python-services/action_recommender
           mypy --explicit-package-bases app tests
+      - name: Security check
+        run: |
+          cd backend/python-services/action_recommender
+          bandit -r app
       - name: Test
         run: |
           cd backend/python-services/action_recommender
@@ -213,7 +229,7 @@ jobs:
           python-version: '3.10'
       - name: Install ruff and pytest
         run: |
-          pip install ruff pytest
+          pip install ruff pytest black bandit
       - name: Install dependencies
         run: |
           if [ -f backend/python-services/knowledge_base/requirements.txt ]; then
@@ -223,11 +239,19 @@ jobs:
         run: |
           cd backend/python-services/knowledge_base
           ruff check .
+      - name: Format code
+        run: |
+          cd backend/python-services/knowledge_base
+          black --check .
       - name: Type check with mypy
         run: |
           pip install mypy
           cd backend/python-services/knowledge_base
           mypy --explicit-package-bases app tests
+      - name: Security check
+        run: |
+          cd backend/python-services/knowledge_base
+          bandit -r app
       - name: Test
         run: |
           cd backend/python-services/knowledge_base
@@ -260,7 +284,7 @@ jobs:
           python-version: '3.10'
       - name: Install ruff and pytest
         run: |
-          pip install ruff pytest
+          pip install ruff pytest black bandit
       - name: Install dependencies
         run: |
           if [ -f backend/python-services/root_cause_predictor/requirements.txt ]; then
@@ -270,11 +294,19 @@ jobs:
         run: |
           cd backend/python-services/root_cause_predictor
           ruff check .
+      - name: Format code
+        run: |
+          cd backend/python-services/root_cause_predictor
+          black --check .
       - name: Type check with mypy
         run: |
           pip install mypy
           cd backend/python-services/root_cause_predictor
           mypy --explicit-package-bases app tests
+      - name: Security check
+        run: |
+          cd backend/python-services/root_cause_predictor
+          bandit -r app
       - name: Test
         run: |
           cd backend/python-services/root_cause_predictor
@@ -307,7 +339,7 @@ jobs:
           python-version: '3.10'
       - name: Install ruff and pytest
         run: |
-          pip install ruff pytest
+          pip install ruff pytest black bandit
       - name: Install dependencies
         run: |
           if [ -f backend/python-services/incident_integrator/requirements.txt ]; then
@@ -317,11 +349,19 @@ jobs:
         run: |
           cd backend/python-services/incident_integrator
           ruff check .
+      - name: Format code
+        run: |
+          cd backend/python-services/incident_integrator
+          black --check .
       - name: Type check with mypy
         run: |
           pip install mypy types-requests
           cd backend/python-services/incident_integrator
           mypy --explicit-package-bases app tests
+      - name: Security check
+        run: |
+          cd backend/python-services/incident_integrator
+          bandit -r app
       - name: Test
         run: |
           cd backend/python-services/incident_integrator
@@ -354,7 +394,7 @@ jobs:
           python-version: '3.10'
       - name: Install ruff and pytest
         run: |
-          pip install ruff pytest
+          pip install ruff pytest black bandit
       - name: Install dependencies
         run: |
           if [ -f backend/python-services/k8s_log_scanner/requirements.txt ]; then
@@ -364,11 +404,19 @@ jobs:
         run: |
           cd backend/python-services/k8s_log_scanner
           ruff check .
+      - name: Format code
+        run: |
+          cd backend/python-services/k8s_log_scanner
+          black --check .
       - name: Type check with mypy
         run: |
           pip install mypy types-requests
           cd backend/python-services/k8s_log_scanner
           mypy --explicit-package-bases app tests
+      - name: Security check
+        run: |
+          cd backend/python-services/k8s_log_scanner
+          bandit -r app
       - name: Test
         run: |
           cd backend/python-services/k8s_log_scanner

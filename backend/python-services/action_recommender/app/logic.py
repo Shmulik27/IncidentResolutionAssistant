@@ -21,7 +21,7 @@ _dummy_X = [
     "Network timeout",
     "Service unavailable",
     "Permission issue",
-    "Unknown or not enough data"
+    "Unknown or not enough data",
 ]
 _dummy_y = [
     "restart_service",
@@ -29,7 +29,7 @@ _dummy_y = [
     "retry_connection",
     "escalate_issue",
     "check_permissions",
-    "escalate_issue"
+    "escalate_issue",
 ]
 vectorizer.fit(_dummy_X)
 model.fit(vectorizer.transform(_dummy_X), _dummy_y)
@@ -46,7 +46,7 @@ def recommend_action_logic(request: RecommendRequest) -> Any:
         "Network timeout": "retry_connection",
         "Service unavailable": "escalate_issue",
         "Permission issue": "check_permissions",
-        "Unknown or not enough data": "escalate_issue"
+        "Unknown or not enough data": "escalate_issue",
     }
     action = mapping.get(request.query, "escalate_issue")
     return type("RecommendResponse", (), {"action": action})()

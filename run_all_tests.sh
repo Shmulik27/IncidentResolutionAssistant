@@ -30,7 +30,9 @@ for service in log_analyzer action_recommender knowledge_base root_cause_predict
     (cd backend/python-services/log_analyzer && source venv/bin/activate && python -m spacy download en_core_web_sm)
   fi
   run_test "Python Linter (ruff) for $service" "(cd backend/python-services/$service && ruff check .)"
+  run_test "Python Formatter (black) for $service" "(cd backend/python-services/$service && black --check .)"
   run_test "Python Type Checker (mypy) for $service" "(cd backend/python-services/$service && mypy --explicit-package-bases app tests)"
+  run_test "Python Security Check (bandit) for $service" "(cd backend/python-services/$service && bandit -r app)"
   # Optionally, activate venv for mypy/ruff if you want full isolation
   # run_test "Python Linter (ruff) for $service" "(cd backend/python-services/$service && source venv/bin/activate && ruff check .)"
   # run_test "Python Type Checker (mypy) for $service" "(cd backend/python-services/$service && source venv/bin/activate && mypy --explicit-package-bases app tests)"

@@ -34,7 +34,7 @@ NORMAL_LOGS = [
     "INFO Data saved to database",
     "INFO Cache hit",
     "INFO Configuration loaded",
-    "INFO Shutdown initiated"
+    "INFO Shutdown initiated",
 ]
 
 vectorizer = TfidfVectorizer()
@@ -88,7 +88,9 @@ def analyze_logs_logic(logs: list[str]) -> dict[str, Any]:
         if any(ent.text in rare_entities for ent in doc.ents):
             entity_anomalies.append(line)
 
-    all_anomalies = list(set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies))
+    all_anomalies = list(
+        set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies)
+    )
     return {
         "anomalies": all_anomalies,
         "count": len(all_anomalies),
@@ -96,6 +98,6 @@ def analyze_logs_logic(logs: list[str]) -> dict[str, Any]:
             "keyword": anomalies,
             "frequency": freq_anomalies,
             "entity": entity_anomalies,
-            "ml": ml_anomalies
-        }
-    } 
+            "ml": ml_anomalies,
+        },
+    }

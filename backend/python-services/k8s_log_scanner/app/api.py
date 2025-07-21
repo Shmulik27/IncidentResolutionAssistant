@@ -14,6 +14,7 @@ import uuid
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_429_TOO_MANY_REQUESTS
 import time as pytime
 from common.fastapi_utils import add_cors, setup_logging
+import re
 
 app = FastAPI(
     title="Kubernetes Log Scanner Service",
@@ -587,9 +588,9 @@ def list_clusters() -> dict:
             for line in lines[1:]:
                 if not line.strip():
                     continue
-                # Remove the '*' if present and split by whitespace
                 line = line.replace('*', ' ')
-                parts = line.split()
+                # Use regex to split on 2+ spaces
+                parts = re.split(r'\s{2,}', line.strip())
                 if len(parts) >= 3:
                     name = parts[0]
                     cluster = parts[1]

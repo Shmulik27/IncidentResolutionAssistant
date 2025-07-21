@@ -11,7 +11,7 @@ import logging
 app = FastAPI(
     title="Action Recommender Service",
     description="Recommends actions to resolve incidents based on analysis and knowledge base.",
-    version="1.0.0"
+    version="1.0.0",
 )
 
 REQUESTS_TOTAL = Counter(
@@ -33,10 +33,12 @@ RECOMMENDATIONS_TOTAL = Counter(
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("action_recommender")
 
+
 @app.get("/metrics")
 def metrics() -> Response:
     """Return Prometheus metrics."""
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.post("/recommend", response_model=RecommendResponse)
 def recommend_action(request: RecommendRequest) -> RecommendResponse:
@@ -56,4 +58,5 @@ def recommend_action(request: RecommendRequest) -> RecommendResponse:
         logger.error("Unexpected error in /recommend: %s", e)
         return RecommendResponse(action="error")
 
-__all__ = ["recommend_action"] 
+
+__all__ = ["recommend_action"]

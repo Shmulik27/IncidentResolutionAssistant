@@ -14,19 +14,19 @@ __all__ = ["predict_root_cause", "get_metrics", "increment_requests_total"]
 
 # Prometheus metrics
 REQUESTS_TOTAL = Counter(
-    'root_cause_predictor_requests_total',
-    'Total requests to root cause predictor',
-    ['endpoint']
+    "root_cause_predictor_requests_total",
+    "Total requests to root cause predictor",
+    ["endpoint"],
 )
 ERRORS_TOTAL = Counter(
-    'root_cause_predictor_errors_total',
-    'Total errors in root cause predictor',
-    ['endpoint']
+    "root_cause_predictor_errors_total",
+    "Total errors in root cause predictor",
+    ["endpoint"],
 )
 PREDICTIONS_TOTAL = Counter(
-    'root_cause_predictor_predictions_total',
-    'Total predictions made',
-    ['endpoint', 'root_cause']
+    "root_cause_predictor_predictions_total",
+    "Total predictions made",
+    ["endpoint", "root_cause"],
 )
 
 # Set up logging
@@ -101,15 +101,16 @@ TRAIN_LOGS = [
     "INFO Data saved to database",
     "INFO Cache hit",
     "INFO Configuration loaded",
-    "INFO Shutdown initiated"
+    "INFO Shutdown initiated",
 ]
-TRAIN_LABELS = [
-    "Memory exhaustion"] * 10 + [
-    "Disk full"] * 10 + [
-    "Network timeout"] * 10 + [
-    "Service unavailable"] * 10 + [
-    "Permission issue"] * 10 + [
-    "Unknown or not enough data"] * 11
+TRAIN_LABELS = (
+    ["Memory exhaustion"] * 10
+    + ["Disk full"] * 10
+    + ["Network timeout"] * 10
+    + ["Service unavailable"] * 10
+    + ["Permission issue"] * 10
+    + ["Unknown or not enough data"] * 11
+)
 
 vectorizer = TfidfVectorizer()
 X_train = vectorizer.fit_transform(TRAIN_LOGS)
@@ -135,7 +136,9 @@ def predict_root_cause(request: PredictRequest) -> dict[str, str]:
         max_proba = np.max(proba)
         pred = model.classes_[np.argmax(proba)]
         if max_proba < 0.05:
-            logger.info(f"Low confidence ({max_proba:.2f}) for prediction. Returning unknown.")
+            logger.info(
+                f"Low confidence ({max_proba:.2f}) for prediction. Returning unknown."
+            )
             PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause="unknown").inc()
             return {"root_cause": "Unknown or not enough data"}
         logger.info(f"Predicted root cause: {pred} (confidence: {max_proba:.2f})")
@@ -158,4 +161,4 @@ def get_metrics() -> bytes:
     """
     Return the latest Prometheus metrics for the service.
     """
-    return generate_latest() 
+    return generate_latest()
