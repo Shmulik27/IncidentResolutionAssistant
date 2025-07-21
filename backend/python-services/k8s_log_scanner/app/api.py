@@ -204,9 +204,16 @@ def readiness() -> Response:
             statuses[name] = f"error: {str(e)}"
             all_ok = False
     if all_ok:
-        return {"status": "ready", "dependencies": statuses}
+        return Response(
+            content=json.dumps({"status": "ready", "dependencies": statuses}),
+            media_type="application/json"
+        )
     else:
-        return Response(json.dumps({"status": "not ready", "dependencies": statuses}), status_code=503, media_type="application/json")
+        return Response(
+            content=json.dumps({"status": "not ready", "dependencies": statuses}),
+            status_code=503,
+            media_type="application/json"
+        )
 
 def setup_kubeconfig(cluster_config: ClusterConfig) -> str:
     """Setup kubeconfig for the cluster and return the path"""
