@@ -52,7 +52,26 @@ run_test "Go Backend Tests (unit, integration, E2E)" "cd backend/go-backend && g
 run_test "Frontend Unit/Integration Tests" "cd frontend && npm install && npm test -- --watchAll=false && cd - > /dev/null"
 
 # Frontend Cypress E2E tests (assumes frontend and backend are running)
+# Start frontend server in background
+echo -e "\n${GREEN}===== Starting Frontend Server for Cypress E2E =====${NC}"
+cd frontend
+PORT=3001 npm start &
+FRONTEND_PID=$!
+cd ..
+# Wait for frontend to be ready
+echo "Waiting for frontend to be ready on http://localhost:3001 ..."
+for i in {1..30}; do
+  if curl -s http://localhost:3001 > /dev/null; then
+    echo "Frontend is up!"
+    break
+  fi
+  sleep 1
+done
+# Run Cypress E2E
 run_test "Frontend Cypress E2E Tests" "cd frontend && npx cypress install && npx cypress run && cd - > /dev/null"
+# Kill frontend server
+echo "Killing frontend server (PID $FRONTEND_PID)"
+kill $FRONTEND_PID
 
 # End-to-end Python test (legacy)
 echo -e "\n${GREEN}===== Python E2E Test (test_e2e.py) =====${NC}"

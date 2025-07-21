@@ -13,4 +13,4 @@ setup(
         "prometheus_client",
         "mypy",
     ],
-) 
+)
