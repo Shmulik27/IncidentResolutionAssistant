@@ -22,11 +22,11 @@ class TestK8sLogScanner(unittest.TestCase):
     @patch('app.api.execute_kubectl_command')
     def test_list_clusters(self, mock_kubectl: MagicMock) -> None:
         """Test listing clusters"""
-        mock_kubectl.return_value = '''
-CURRENT   NAME           CLUSTER                                                  AUTHINFO   NAMESPACE
-          eks-cluster-1  arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-1  aws
-          gke-cluster-1  gke_project-zone_gke-cluster-1                            gcp
-'''
+        mock_kubectl.return_value = (
+            "CURRENT   NAME           CLUSTER                                                  AUTHINFO   NAMESPACE\n"
+            "*         eks-cluster-1  arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-1  aws       default\n"
+            "          gke-cluster-1  gke_project-zone_gke-cluster-1                            gcp       \n"
+        )
         
         response = self.client.get("/clusters")
         self.assertEqual(response.status_code, 200)
