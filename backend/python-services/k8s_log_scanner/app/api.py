@@ -575,34 +575,31 @@ def extract_cluster_name(arn: str) -> str:
 def list_clusters() -> dict:
     """List available clusters from kubeconfig"""
     REQUESTS_TOTAL.labels(endpoint="/clusters").inc()
-    
     try:
         kubeconfig_path = os.path.expanduser("~/.kube/config")
         if not os.path.exists(kubeconfig_path):
             return {"clusters": []}
-        
         cmd = ["config", "get-contexts"]
         output = execute_kubectl_command(cmd, kubeconfig_path)
-        
-        # Parse kubectl output manually since JSON format is not available
         lines = output.strip().split('\n')
         clusters = []
-        
-        # Skip header line
-        for line in lines[1:]:
-            if line.strip():
+        if len(lines) > 1:
+            for line in lines[1:]:
+                if not line.strip():
+                    continue
+                # Remove the '*' if present and split by whitespace
+                line = line.replace('*', ' ')
                 parts = line.split()
                 if len(parts) >= 3:
-                    arn = parts[1] # This is the cluster ARN
-                    name = extract_cluster_name(arn)
+                    name = parts[0]
+                    cluster = parts[1]
+                    user = parts[2] if len(parts) > 2 else ""
                     clusters.append({
                         "name": name,
-                        "cluster": arn,
-                        "user": arn  # or whatever is appropriate
+                        "cluster": cluster,
+                        "user": user
                     })
-        
         return {"clusters": clusters}
-        
     except Exception as e:
         ERRORS_TOTAL.labels(endpoint="/clusters").inc()
         logger.error(f"Error listing clusters: {e}")
