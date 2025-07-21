@@ -448,18 +448,16 @@ jobs:
       - name: Install formatters
         run: |
           pip install black ruff
-      - name: Check formatting
-        id: check_format
+      - name: Check formatting and auto-fix if needed
         run: |
-          black --check .
-          ruff format --check .
-      - name: Auto-fix and push if needed
-        if: failure()
-        run: |
+          set -e
+          black --check . && ruff format --check . && exit 0
+          echo "Formatting needed, running auto-fix..."
           black .
           ruff format .
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
           git commit -m "ci: auto-format code with black and ruff" || exit 0
-          git push 
+          git push
+          exit 0 
