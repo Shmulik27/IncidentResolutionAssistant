@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Response, HTTPException, Request
 from pydantic import BaseModel
-from typing import List, Optional, Dict, Union, TypedDict, Any
+from typing import List, Optional, Dict, TypedDict
 from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
 import base64
 import tempfile
