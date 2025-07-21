@@ -44,11 +44,11 @@ DEFAULT_CONFIG = {
     # Add feature flags or other config as needed
 }
 
-_config_cache = None
-_config_mtime = None
+_config_cache: Optional[Dict[str, str | bool]] = None
+_config_mtime: Optional[float] = None
 _config_lock = threading.Lock()
 
-def load_config():
+def load_config() -> Dict[str, str | bool]:
     global _config_cache, _config_mtime
     with _config_lock:
         try:
@@ -70,7 +70,7 @@ def load_config():
             logger.error(f"Failed to load config: {e}")
             return DEFAULT_CONFIG.copy()
 
-def save_config(new_config):
+def save_config(new_config: dict) -> dict:
     with _config_lock:
         config = load_config()
         config.update(new_config)
@@ -83,7 +83,7 @@ def save_config(new_config):
         return config
 
 @app.get("/config")
-def get_config():
+def get_config() -> dict:
     config = load_config()
     # Mask secrets in GET
     masked = {}
@@ -95,7 +95,7 @@ def get_config():
     return masked
 
 @app.post("/config")
-def update_config(new_config: dict):
+def update_config(new_config: dict) -> dict:
     config = save_config(new_config)
     return {"status": "ok", "config": config}
 
@@ -141,17 +141,17 @@ class LogScanAndAnalysisResponse(LogScanResponse):
 # ACTION_RECOMMENDER_URL = os.getenv("ACTION_RECOMMENDER_URL", "http://action-recommender:8000/recommend")
 
 @app.get("/metrics")
-def metrics():
+def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 @app.get("/health")
-def health():
+def health() -> dict:
     logger.info("/health endpoint called.")
     REQUESTS_TOTAL.labels(endpoint="/health").inc()
     return {"status": "ok"}
 
 @app.get("/ready")
-def readiness():
+def readiness() -> Response:
     config = load_config()
     dependencies = {
         "log_analyzer": config["LOG_ANALYZER_URL"].replace("/analyze", "/health"),
@@ -303,10 +303,10 @@ MAX_PATTERN_LENGTH = 100
 # Simple in-memory per-IP rate limiter
 RATE_LIMIT = 5  # max requests
 RATE_PERIOD = 60  # seconds
-rate_limit_store = {}
+rate_limit_store: Dict[str, List[float]] = {}
 rate_limit_lock = threading.Lock()
 
-def check_rate_limit(ip):
+def check_rate_limit(ip: str) -> bool:
     now = pytime.time()
     with rate_limit_lock:
         timestamps = rate_limit_store.get(ip, [])
@@ -318,7 +318,7 @@ def check_rate_limit(ip):
         rate_limit_store[ip] = timestamps
         return True
 
-def validate_scan_request(request: LogScanRequest):
+def validate_scan_request(request: LogScanRequest) -> None:
     if len(request.namespaces) > MAX_NAMESPACES:
         VALIDATION_ERRORS_TOTAL.labels(endpoint="/scan-logs").inc()
         raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=f"Too many namespaces (max {MAX_NAMESPACES})")
@@ -335,7 +335,7 @@ def validate_scan_request(request: LogScanRequest):
         VALIDATION_ERRORS_TOTAL.labels(endpoint="/scan-logs").inc()
         raise HTTPException(status_code=HTTP_400_BAD_REQUEST, detail=f"Search pattern too long (max {MAX_PATTERN_LENGTH} chars)")
 
-def is_critical_root_cause(prediction):
+def is_critical_root_cause(prediction: dict) -> bool:
     # Default list, could be made configurable
     critical_causes = [
         "Memory exhaustion", "Disk full", "Service unavailable", "Network timeout", "Permission issue", "Critical"
@@ -345,7 +345,7 @@ def is_critical_root_cause(prediction):
 
 # Update scan_logs to accept job_id=None
 @app.post("/scan-logs", response_model=LogScanAndAnalysisResponse)
-def scan_logs(request: LogScanRequest, req: Request, job_id: str = ""):
+def scan_logs(request: LogScanRequest, req: Request, job_id: str = "") -> LogScanAndAnalysisResponse:
     ip = req.client.host if req.client else 'unknown'
     if not check_rate_limit(ip):
         RATE_LIMITED_TOTAL.labels(endpoint="/scan-logs").inc()
@@ -485,12 +485,12 @@ def scan_logs(request: LogScanRequest, req: Request, job_id: str = ""):
             raise HTTPException(status_code=500, detail=str(e))
 
 # In-memory job store
-scan_jobs = {}
+scan_jobs: Dict[str, Dict[str, str | None | LogScanAndAnalysisResponse]] = {}
 scan_jobs_lock = threading.Lock()
 
 # Update scan_logs_async to pass job_id
 @app.post("/scan-logs-async")
-def scan_logs_async(request: LogScanRequest, req: Request):
+def scan_logs_async(request: LogScanRequest, req: Request) -> dict:
     ip = req.client.host if req.client else 'unknown'
     if not check_rate_limit(ip):
         RATE_LIMITED_TOTAL.labels(endpoint="/scan-logs-async").inc()
@@ -517,7 +517,7 @@ def scan_logs_async(request: LogScanRequest, req: Request):
     return {"job_id": job_id}
 
 @app.get("/scan-logs-job/{job_id}")
-def get_scan_job(job_id: str):
+def get_scan_job(job_id: str) -> dict:
     with scan_jobs_lock:
         job = scan_jobs.get(job_id)
         if not job:
@@ -529,12 +529,12 @@ def get_scan_job(job_id: str):
         else:
             return {"status": job["status"]}
 
-def extract_cluster_name(arn):
+def extract_cluster_name(arn: str) -> str:
     # arn:aws:eks:region:account:cluster/CLUSTER_NAME
     return arn.split('/')[-1]
 
 @app.get("/clusters")
-def list_clusters():
+def list_clusters() -> dict:
     """List available clusters from kubeconfig"""
     REQUESTS_TOTAL.labels(endpoint="/clusters").inc()
     
@@ -571,7 +571,7 @@ def list_clusters():
         return {"clusters": [], "error": str(e)}
 
 @app.get("/namespaces/{cluster_name:path}")
-def list_namespaces(cluster_name: str):
+def list_namespaces(cluster_name: str) -> dict:
     """List namespaces in a cluster"""
     REQUESTS_TOTAL.labels(endpoint="/namespaces").inc()
     

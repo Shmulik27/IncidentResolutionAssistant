@@ -1,26 +1,26 @@
 import unittest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
-from scanner import app
+from app.api import app
 
 class TestK8sLogScanner(unittest.TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.client = TestClient(app)
 
-    def test_health_endpoint(self):
+    def test_health_endpoint(self) -> None:
         """Test the health endpoint"""
         response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "ok"})
 
-    def test_metrics_endpoint(self):
+    def test_metrics_endpoint(self) -> None:
         """Test the metrics endpoint"""
         response = self.client.get("/metrics")
         self.assertEqual(response.status_code, 200)
         self.assertIn("k8s_scanner_requests_total", response.text)
 
-    @patch('scanner.execute_kubectl_command')
-    def test_list_clusters(self, mock_kubectl):
+    @patch('app.api.execute_kubectl_command')
+    def test_list_clusters(self, mock_kubectl) -> None:
         """Test listing clusters"""
         mock_kubectl.return_value = '''
         {
@@ -50,8 +50,8 @@ class TestK8sLogScanner(unittest.TestCase):
         self.assertEqual(len(data["clusters"]), 2)
         self.assertEqual(data["clusters"][0]["name"], "eks-cluster-1")
 
-    @patch('scanner.execute_kubectl_command')
-    def test_scan_logs_success(self, mock_kubectl):
+    @patch('app.api.execute_kubectl_command')
+    def test_scan_logs_success(self, mock_kubectl) -> None:
         """Test successful log scanning"""
         # Mock kubectl commands
         mock_kubectl.side_effect = [
@@ -97,13 +97,13 @@ class TestK8sLogScanner(unittest.TestCase):
         self.assertGreater(data["total_logs"], 0)
         self.assertIn("test-pod-1", data["pods_scanned"][0])
 
-    def test_scan_logs_invalid_request(self):
+    def test_scan_logs_invalid_request(self) -> None:
         """Test log scanning with invalid request"""
         response = self.client.post("/scan-logs", json={})
         self.assertEqual(response.status_code, 422)  # Validation error
 
-    @patch('scanner.execute_kubectl_command')
-    def test_scan_logs_with_filters(self, mock_kubectl):
+    @patch('app.api.execute_kubectl_command')
+    def test_scan_logs_with_filters(self, mock_kubectl) -> None:
         """Test log scanning with filters"""
         mock_kubectl.side_effect = [
             # get pods
@@ -150,8 +150,8 @@ class TestK8sLogScanner(unittest.TestCase):
         for log in data["logs"]:
             self.assertIn("Database", log)
 
-    @patch('scanner.execute_kubectl_command')
-    def test_scan_logs_error_handling(self, mock_kubectl):
+    @patch('app.api.execute_kubectl_command')
+    def test_scan_logs_error_handling(self, mock_kubectl) -> None:
         """Test error handling in log scanning"""
         mock_kubectl.side_effect = Exception("kubectl command failed")
 
