@@ -28,7 +28,7 @@ RUN curl -LO https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-c
 WORKDIR /app
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt ./
+COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the k8s scanner service
