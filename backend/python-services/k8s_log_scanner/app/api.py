@@ -314,7 +314,9 @@ def execute_kubectl_command(
         full_cmd.extend(["--context", context])
     try:
         # Safe usage: shell=False, no user input in command string
-        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=30)  # nosec
+        result = subprocess.run(
+            full_cmd, capture_output=True, text=True, timeout=30
+        )  # nosec
         if result.returncode != 0:
             raise Exception(f"kubectl command failed: {result.stderr}")
         return result.stdout
