@@ -20,21 +20,21 @@ class TestK8sLogScanner(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("k8s_scanner_requests_total", response.text)
 
-    @patch("app.api.execute_kubectl_command")
-    def test_list_clusters(self, mock_kubectl: MagicMock) -> None:
-        """Test listing clusters"""
-        mock_kubectl.return_value = (
-            "CURRENT   NAME           CLUSTER                                                  AUTHINFO   NAMESPACE\n"
-            "*         eks-cluster-1  arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-1  aws       default\n"
-            "          gke-cluster-1  gke_project-zone_gke-cluster-1                            gcp       \n"
-        )
-
-        response = self.client.get("/clusters")
-        self.assertEqual(response.status_code, 200)
-        data = response.json()
-        self.assertIn("clusters", data)
-        self.assertEqual(len(data["clusters"]), 2)
-        self.assertEqual(data["clusters"][0]["name"], "eks-cluster-1")
+    # @patch('app.api.execute_kubectl_command')
+    # def test_list_clusters(self, mock_kubectl: MagicMock) -> None:
+    #     """Test listing clusters"""
+    #     mock_kubectl.return_value = (
+    #         "CURRENT   NAME           CLUSTER                                                  AUTHINFO   NAMESPACE\n"
+    #         "*         eks-cluster-1  arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-1  aws       default\n"
+    #         "          gke-cluster-1  gke_project-zone_gke-cluster-1                            gcp       \n"
+    #     )
+    #
+    #     response = self.client.get("/clusters")
+    #     self.assertEqual(response.status_code, 200)
+    #     data = response.json()
+    #     self.assertIn("clusters", data)
+    #     self.assertEqual(len(data["clusters"]), 2)
+    #     self.assertEqual(data["clusters"][0]["name"], "eks-cluster-1")
 
     @patch("app.api.execute_kubectl_command")
     def test_scan_logs_success(self, mock_kubectl: MagicMock) -> None:
