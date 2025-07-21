@@ -559,7 +559,9 @@ def scan_logs(
                 try:
                     os.unlink(kubeconfig_path)
                 except Exception as e:
-                    logger.warning(f"Failed to delete kubeconfig file {kubeconfig_path}: {e}")
+                    logger.warning(
+                        f"Failed to delete kubeconfig file {kubeconfig_path}: {e}"
+                    )
             logger.info(
                 f"Log scan completed. Found {len(all_logs)} log lines from {len(pods_scanned)} pods"
             )
