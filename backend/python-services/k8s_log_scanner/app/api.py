@@ -314,9 +314,7 @@ def execute_kubectl_command(
         full_cmd.extend(["--context", context])
     try:
         # Safe usage: shell=False, no user input in command string
-        result = subprocess.run(
-            full_cmd, capture_output=True, text=True, timeout=30
-        )  # nosec
+        result = subprocess.run(full_cmd, capture_output=True, text=True, timeout=30)  # nosec
         if result.returncode != 0:
             raise Exception(f"kubectl command failed: {result.stderr}")
         return result.stdout
@@ -784,12 +782,12 @@ def list_clusters() -> dict:
                 if not line.strip():
                     continue
                 line = line.replace("*", " ")
-                # Use regex to split on 2+ spaces
                 parts = re.split(r"\s{2,}", line.strip())
-                if len(parts) >= 3:
-                    name = parts[0]
-                    cluster = parts[1]
-                    user = parts[2] if len(parts) > 2 else ""
+                # The first column is CURRENT (may be empty), so skip it if present
+                if len(parts) >= 4:
+                    name = parts[1]
+                    cluster = parts[2]
+                    user = parts[3]
                     clusters.append({"name": name, "cluster": cluster, "user": user})
         return {"clusters": clusters}
     except Exception as e:
