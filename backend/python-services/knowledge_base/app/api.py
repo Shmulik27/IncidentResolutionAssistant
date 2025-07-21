@@ -37,7 +37,7 @@ INCIDENTS = [
 MODEL = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Embed all incident texts
-incident_texts = [incident["text"] for incident in INCIDENTS]
+incident_texts: list[str] = [str(incident["text"]) for incident in INCIDENTS]
 incident_embeddings = MODEL.encode(incident_texts, convert_to_numpy=True)
 
 # Build FAISS index
