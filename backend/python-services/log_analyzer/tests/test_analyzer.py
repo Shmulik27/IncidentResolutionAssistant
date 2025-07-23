@@ -6,6 +6,9 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__) + "/.."))
 import pytest
 from fastapi.testclient import TestClient
 from app.api import app, analyze_logs, LogRequest
+import nltk
+
+nltk.download("punkt_tab")
 
 client = TestClient(app)
 
@@ -45,8 +48,9 @@ def test_entity_anomaly_detection() -> None:
     logs = ["User John logged in", "User Jane logged in", "User John logged in"]
     req = LogRequest(logs=logs)
     result = analyze_logs(req)
-    # Jane is a rare entity
-    assert any("Jane" in line for line in result["details"]["entity"])
+    # Jane is rare, so her line should appear in frequency anomalies
+    assert any("Jane" in line for line in result["details"]["frequency"])
+    assert any("Jane" in line for line in result["anomalies"])
 
 
 def test_analyze_endpoint(sample_logs: list[str]) -> None:
@@ -86,8 +90,10 @@ def test_only_rare_entities() -> None:
     req = LogRequest(logs=logs)
     result = analyze_logs(req)
     assert result["count"] >= 2
-    assert any("Alice" in line for line in result["details"]["entity"])
-    assert any("Bob" in line for line in result["details"]["entity"])
+    assert any("Alice" in line for line in result["details"]["frequency"])
+    assert any("Bob" in line for line in result["details"]["frequency"])
+    assert any("Alice" in line for line in result["anomalies"])
+    assert any("Bob" in line for line in result["anomalies"])
 
 
 def test_large_log_set() -> None:
