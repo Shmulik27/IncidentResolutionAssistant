@@ -1,21 +1,15 @@
-"""
-Logic for the Log Analyzer Service.
-Performs anomaly detection on logs using ML, keyword, frequency, and entity-based methods.
-"""
-
 from collections import Counter as StdCounter
 import os
 import logging
-import spacy
-from sklearn.ensemble import IsolationForest
-from sklearn.feature_extraction.text import TfidfVectorizer
-import numpy as np
-import scipy.sparse as sparse
 from typing import Any
+from .log_analyzer import (
+    detect_anomalies_isolation_forest,
+    detect_anomalies_zscore,
+    preprocess_logs_nltk,
+    preprocess_logs_spacy,
+)
 
 __all__ = ["analyze_logs_logic"]
-
-nlp = spacy.load("en_core_web_sm")
 
 DEFAULT_KEYWORDS = ["ERROR", "Exception", "CRITICAL"]
 KEYWORDS = os.getenv("LOG_ANALYZER_KEYWORDS")
@@ -23,28 +17,6 @@ if KEYWORDS:
     keywords = [k.strip() for k in KEYWORDS.split(",") if k.strip()]
 else:
     keywords = DEFAULT_KEYWORDS
-
-NORMAL_LOGS = [
-    "INFO Service started successfully",
-    "INFO User logged in",
-    "INFO Health check passed",
-    "INFO Scheduled job completed",
-    "INFO Connection established",
-    "INFO Request processed",
-    "INFO Data saved to database",
-    "INFO Cache hit",
-    "INFO Configuration loaded",
-    "INFO Shutdown initiated",
-]
-
-vectorizer = TfidfVectorizer()
-X_train = vectorizer.fit_transform(NORMAL_LOGS)
-if sparse.issparse(X_train):
-    X_train_dense = sparse.csr_matrix(X_train).toarray()
-else:
-    X_train_dense = np.array(X_train)
-iso_forest = IsolationForest(contamination="auto", random_state=42)
-iso_forest.fit(X_train_dense)
 
 logger = logging.getLogger("log_analyzer.logic")
 
@@ -55,15 +27,22 @@ def analyze_logs_logic(logs: list[str]) -> dict[str, Any]:
     Returns a dictionary with anomaly details.
     """
     anomalies = []
-    entity_anomalies = []
     freq_anomalies = []
     ml_anomalies = []
 
-    # ML-based anomaly detection
-    X_test = vectorizer.transform(logs)
-    X_test_dense = sparse.csr_matrix(X_test).toarray()
-    preds = iso_forest.predict(X_test_dense)
-    ml_anomalies = [line for line, pred in zip(logs, preds) if pred == -1]
+    # ML-based anomaly detection (Isolation Forest)
+    ml_anomalies = [
+        line
+        for line, pred in zip(logs, detect_anomalies_isolation_forest(logs))
+        if pred == -1
+    ]
+
+    # Statistical anomaly detection (Z-Score)
+    zscore_anomalies = [
+        line
+        for line, is_anomaly in zip(logs, detect_anomalies_zscore(logs))
+        if is_anomaly
+    ]
 
     # Keyword-based anomaly detection
     for line in logs:
@@ -75,21 +54,12 @@ def analyze_logs_logic(logs: list[str]) -> dict[str, Any]:
     rare_lines = [line for line, count in counts.items() if count == 1]
     freq_anomalies.extend(rare_lines)
 
-    # Entity-based anomaly detection
-    all_entities = []
-    for line in logs:
-        doc = nlp(line)
-        for ent in doc.ents:
-            all_entities.append(ent.text)
-    entity_counts = StdCounter(all_entities)
-    rare_entities = {ent for ent, count in entity_counts.items() if count == 1}
-    for line in logs:
-        doc = nlp(line)
-        if any(ent.text in rare_entities for ent in doc.ents):
-            entity_anomalies.append(line)
+    # NLP Preprocessing (optional, for further analysis)
+    processed_logs_nltk = preprocess_logs_nltk(logs)
+    processed_logs_spacy = preprocess_logs_spacy(logs)
 
     all_anomalies = list(
-        set(anomalies + freq_anomalies + entity_anomalies + ml_anomalies)
+        set(anomalies + freq_anomalies + zscore_anomalies + ml_anomalies)
     )
     return {
         "anomalies": all_anomalies,
@@ -97,7 +67,9 @@ def analyze_logs_logic(logs: list[str]) -> dict[str, Any]:
         "details": {
             "keyword": anomalies,
             "frequency": freq_anomalies,
-            "entity": entity_anomalies,
             "ml": ml_anomalies,
+            "zscore": zscore_anomalies,
+            "processed_nltk": processed_logs_nltk,
+            "processed_spacy": processed_logs_spacy,
         },
     }

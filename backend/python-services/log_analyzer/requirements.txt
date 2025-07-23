@@ -6,4 +6,6 @@ httpx
 pydantic
 spacy 
 scikit-learn 
-mypy 
+mypy
+statsmodels
+nltk
