@@ -1,55 +1,33 @@
 """
 Logic for the Action Recommender service.
-Provides action recommendations based on incident queries.
+Provides action recommendations based on incident queries using AI.
 """
 
 import logging
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
-from typing import Any
+from typing import Any, List, Dict
 from app.models import RecommendRequest
+from .ai_recommender import recommender
 
 logger = logging.getLogger("action_recommender.logic")
 
-vectorizer = TfidfVectorizer()
-model = LogisticRegression()
 
-# Fit with dummy data for testing/demo
-_dummy_X = [
-    "Memory exhaustion",
-    "Disk full",
-    "Network timeout",
-    "Service unavailable",
-    "Permission issue",
-    "Unknown or not enough data",
-]
-_dummy_y = [
-    "restart_service",
-    "free_disk_space",
-    "retry_connection",
-    "escalate_issue",
-    "check_permissions",
-    "escalate_issue",
-]
-vectorizer.fit(_dummy_X)
-model.fit(vectorizer.transform(_dummy_X), _dummy_y)
-
-
-def recommend_action_logic(request: RecommendRequest) -> Any:
+def recommend_action_logic(request: RecommendRequest) -> List[Dict[str, Any]]:
     """
-    Recommend an action based on the request query.
-    Returns a RecommendResponse object with the action.
+    Recommend actions based on the request query using AI.
+    Returns a list of recommended actions with confidence scores.
     """
-    mapping = {
-        "Memory exhaustion": "restart_service",
-        "Disk full": "free_disk_space",
-        "Network timeout": "retry_connection",
-        "Service unavailable": "escalate_issue",
-        "Permission issue": "check_permissions",
-        "Unknown or not enough data": "escalate_issue",
-    }
-    action = mapping.get(request.query, "escalate_issue")
-    return type("RecommendResponse", (), {"action": action})()
+    try:
+        # Get AI-powered recommendations
+        recommendations = recommender.recommend_actions(
+            incident_description=request.query,
+            root_cause=request.root_cause if hasattr(request, "root_cause") else None,
+        )
+
+        return recommendations
+
+    except Exception as e:
+        logger.error(f"Error in recommendation: {str(e)}")
+        return [{"action": "Unable to generate recommendations", "confidence": 0.0}]
 
 
 __all__ = ["recommend_action_logic"]

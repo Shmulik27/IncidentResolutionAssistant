@@ -8,3 +8,4 @@ requests
 jira
 PyGithub 
 mypy 
+types-requests

@@ -5,7 +5,7 @@ API endpoints for the Action Recommender service.
 from fastapi import FastAPI, Response
 from prometheus_client import Counter, generate_latest, CONTENT_TYPE_LATEST
 from app.logic import recommend_action_logic
-from app.models import RecommendRequest, RecommendResponse
+from app.models import RecommendRequest, RecommendResponse, ActionRecommendation
 import logging
 
 app = FastAPI(
@@ -42,21 +42,28 @@ def metrics() -> Response:
 
 @app.post("/recommend", response_model=RecommendResponse)
 def recommend_action(request: RecommendRequest) -> RecommendResponse:
-    """Recommend an action based on the request."""
+    """Recommend actions based on the request using AI."""
     REQUESTS_TOTAL.labels(endpoint="/recommend").inc()
     try:
         logger.info("Received recommend request: %s", request)
-        result = recommend_action_logic(request)
-        RECOMMENDATIONS_TOTAL.labels(endpoint="/recommend", action=result.action).inc()
-        return result
-    except ValueError as e:
-        ERRORS_TOTAL.labels(endpoint="/recommend").inc()
-        logger.error("ValueError in /recommend: %s", e)
-        return RecommendResponse(action="error")
+        recommendations = recommend_action_logic(request)
+
+        # Convert dictionaries to ActionRecommendation objects
+        formatted_recommendations = [
+            ActionRecommendation(**rec) for rec in recommendations
+        ]
+
+        # Increment metrics for each recommendation
+        for rec in formatted_recommendations:
+            RECOMMENDATIONS_TOTAL.labels(endpoint="/recommend", action=rec.action).inc()
+
+        return RecommendResponse(recommendations=formatted_recommendations)
     except Exception as e:
         ERRORS_TOTAL.labels(endpoint="/recommend").inc()
         logger.error("Unexpected error in /recommend: %s", e)
-        return RecommendResponse(action="error")
+        return RecommendResponse(
+            recommendations=[ActionRecommendation(action="error", confidence=0.0)]
+        )
 
 
 __all__ = ["recommend_action"]

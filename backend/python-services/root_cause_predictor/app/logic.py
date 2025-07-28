@@ -3,12 +3,15 @@ Logic for the Root Cause Predictor Service.
 Handles model training, prediction, and Prometheus metrics.
 """
 
+from prometheus_client import Counter
 import logging
 import numpy as np
-from prometheus_client import Counter, generate_latest
+from typing import Dict, Any, List
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from prometheus_client import generate_latest
 from .models import PredictRequest
+from .ai_analyzer import analyzer  # Import our new AI analyzer
 
 __all__ = ["predict_root_cause", "get_metrics", "increment_requests_total"]
 
@@ -119,35 +122,71 @@ model = LogisticRegression(max_iter=1000)
 model.fit(X_train, y_train)
 
 
-def predict_root_cause(request: PredictRequest) -> dict[str, str]:
+def predict_root_cause(request: PredictRequest) -> Dict[str, Any]:
     """
-    Predict the root cause of an incident based on the provided logs.
-    Returns a dictionary with the predicted root cause or error message.
+    Predict the root cause of an issue based on log messages.
+
+    Args:
+        request (PredictRequest): Request containing log messages to analyze.
+
+    Returns:
+        dict: Dictionary containing root cause and confidence level.
     """
     try:
-        logger.info(f"Received {len(request.logs)} log lines for prediction.")
-        if not request.logs:
-            logger.info("No logs provided in request.")
-            PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause="unknown").inc()
-            return {"root_cause": "Unknown or not enough data"}
-        joined_logs = " ".join(request.logs)
-        X_query = vectorizer.transform([joined_logs])
-        proba = model.predict_proba(X_query)[0]
-        max_proba = np.max(proba)
-        pred = model.classes_[np.argmax(proba)]
-        if max_proba < 0.05:
-            logger.info(
-                f"Low confidence ({max_proba:.2f}) for prediction. Returning unknown."
-            )
-            PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause="unknown").inc()
-            return {"root_cause": "Unknown or not enough data"}
-        logger.info(f"Predicted root cause: {pred} (confidence: {max_proba:.2f})")
-        PREDICTIONS_TOTAL.labels(endpoint="/predict", root_cause=pred).inc()
-        return {"root_cause": pred}
+        # Process each log message and get predictions
+        root_causes: List[str] = []
+        confidences: List[float] = []
+        for log in request.logs:
+            root_cause, confidence = analyzer.predict(log)
+            root_causes.append(root_cause)
+            confidences.append(confidence)
+
+        # If all confidences are too low, return unknown
+        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+        if avg_confidence < 0.3:  # Threshold can be adjusted
+            return {
+                "root_cause": "Unknown or not enough data",  # Return display name
+                "confidence": 0.0,  # Always return 0.0 for unknown
+                "error": "Confidence too low",
+            }
+
+        # Get the most common root cause
+        from collections import Counter
+
+        most_common_root_cause = Counter(root_causes).most_common(1)[0][0]
+
+        # Increment prediction counter
+        PREDICTIONS_TOTAL.labels(
+            endpoint="/predict", root_cause=most_common_root_cause
+        ).inc()
+
+        # Map internal root cause labels to display labels
+        root_cause_display = {
+            "memory_exhaustion": "Memory exhaustion",
+            "disk_full": "Disk full",
+            "network_failure": "Network failure",
+            "Service unavailable": "Service unavailable",  # Already in display format
+            "Permission issue": "Permission issue",  # Already in display format
+            "unknown": "Unknown or not enough data",
+        }
+
+        display_root_cause = root_cause_display.get(
+            most_common_root_cause, "Unknown or not enough data"
+        )
+
+        return {
+            "root_cause": display_root_cause,
+            "confidence": float(avg_confidence),
+            "error": None,
+        }
     except Exception as e:
+        logger.error(f"Error in prediction: {str(e)}")
         ERRORS_TOTAL.labels(endpoint="/predict").inc()
-        logger.error(f"Error in /predict: {e}")
-        return {"error": str(e)}
+        return {
+            "root_cause": "unknown",
+            "confidence": 0.0,
+            "error": str(e),
+        }
 
 
 def increment_requests_total(endpoint: str) -> None:

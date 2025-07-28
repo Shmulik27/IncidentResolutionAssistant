@@ -6,3 +6,8 @@ httpx
 pydantic 
 scikit-learn 
 mypy 
+transformers
+torch
+sentence-transformers
+onnxruntime
+numpy

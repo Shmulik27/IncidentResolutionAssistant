@@ -1,32 +1,41 @@
-import sys
-import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 from fastapi.testclient import TestClient
-from app.api import app
-from app.logic import predict_root_cause
-from app.models import PredictRequest
+from ..app.api import app
+from ..app.logic import predict_root_cause
+from ..app.models import PredictRequest
 
 client = TestClient(app)
 
 
 def test_memory_exhaustion() -> None:
-    req = PredictRequest(logs=["2024-06-01 ERROR Out of memory in service X"])
+    req = PredictRequest(logs=["Out of memory error in service X"])
     result = predict_root_cause(req)
     assert result["root_cause"] == "Memory exhaustion"
+    assert result["confidence"] > 0.5
+    assert result["error"] is None
 
 
 def test_disk_full() -> None:
-    req = PredictRequest(logs=["2024-06-01 disk full on /dev/sda1"])
+    req = PredictRequest(logs=["Disk full on /dev/sda1"])
     result = predict_root_cause(req)
     assert result["root_cause"] == "Disk full"
+    assert result["confidence"] > 0.5
+    assert result["error"] is None
 
 
-def test_network_timeout() -> None:
-    req = PredictRequest(logs=["2024-06-01 connection timeout to DB"])
+def test_network_failure() -> None:
+    req = PredictRequest(logs=["Connection timeout to database"])
     result = predict_root_cause(req)
-    assert result["root_cause"] == "Network timeout"
+    assert result["root_cause"] == "Network failure"
+    assert result["confidence"] > 0.5
+    assert result["error"] is None
+
+
+def test_low_confidence_single_log() -> None:
+    req = PredictRequest(logs=["Some unclear error message"])
+    result = predict_root_cause(req)
+    assert result["root_cause"] == "Unknown or not enough data"
+    assert result["confidence"] == 0.0
+    assert result["error"] == "Confidence too low"
 
 
 def test_service_unavailable() -> None:
@@ -54,7 +63,7 @@ def test_predict_endpoint() -> None:
     assert response.json()["root_cause"] == "Memory exhaustion"
 
 
-def test_low_confidence() -> None:
+def test_low_confidence_multiple_logs() -> None:
     req = PredictRequest(logs=["2024-06-01 INFO All good"])
     result = predict_root_cause(req)
     assert result["root_cause"] == "Unknown or not enough data"

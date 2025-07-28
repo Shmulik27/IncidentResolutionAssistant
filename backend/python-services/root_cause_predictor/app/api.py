@@ -5,7 +5,7 @@ API endpoints for the Root Cause Predictor Service.
 from fastapi import FastAPI
 from prometheus_client import CONTENT_TYPE_LATEST
 from common.fastapi_utils import add_cors, setup_logging, add_metrics_endpoint
-from .models import PredictRequest
+from .models import PredictRequest, PredictResponse
 from .logic import predict_root_cause, get_metrics
 
 app = FastAPI(
@@ -28,9 +28,15 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/predict")
-def predict(request: PredictRequest) -> dict[str, str]:
+@app.post("/predict", response_model=PredictResponse)
+def predict(request: PredictRequest) -> PredictResponse:
     from .logic import increment_requests_total
 
     increment_requests_total("/predict")
-    return predict_root_cause(request)
+    result = predict_root_cause(request)
+
+    return PredictResponse(
+        root_cause=result["root_cause"],  # Already in display format from logic.py
+        confidence=float(result["confidence"]),
+        error=result["error"],
+    )
